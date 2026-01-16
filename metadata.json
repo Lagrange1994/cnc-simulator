@@ -1,0 +1,5 @@
+{
+  "name": "Super High Tech CNC Simulator",
+  "description": "A high-precision, industrial-grade CNC dashboard for simulating and monitoring G-Code execution with real-time coordinate tracking and toolpath visualization.",
+  "requestFramePermissions": []
+}
