@@ -18,11 +18,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const gcodeStr = currentGCode.map(l => `${l.command} ${l.params || ''}`).join('\n');
-      
+
       const res = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Analyze this G-Code for errors, potential collisions, or optimizations. Be concise and professional.
-        
+
         G-Code:
         ${gcodeStr}`,
         config: {
@@ -40,31 +40,38 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
 
   return (
     <div className="absolute bottom-20 left-4 z-50">
-      <button 
+      {/* Carbon Primary Button – floating action */}
+      <button
         onClick={analyzeGCode}
-        className="bg-[#1791cf] text-white p-3 shadow-lg hover:scale-105 transition-transform flex items-center justify-center group chamfer-sm"
+        className="bg-cds-interactive text-white p-3 shadow-lg hover:scale-105 transition-transform flex items-center justify-center group chamfer-sm"
       >
         <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">psychology</span>
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap px-0 group-hover:px-2 text-sm font-bold uppercase">Ask AI Assistant</span>
+        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap px-0 group-hover:px-2 text-body-sm font-semibold uppercase">
+          Ask AI Assistant
+        </span>
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-16 left-0 w-80 bg-[#2B2B2B] border border-[#404040] shadow-2xl overflow-hidden flex flex-col max-h-[400px] chamfer-accent">
-          <div className="p-3 bg-[#1A1A1A] border-b border-[#404040] flex justify-between items-center">
-            <span className="text-xs font-bold text-[#1791cf] tracking-widest uppercase">Gemini Copilot</span>
-            <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-white"><span className="material-symbols-outlined text-sm">close</span></button>
+        /* Carbon Popover / Panel */
+        <div className="absolute bottom-16 left-0 w-80 bg-cds-layer-01 border border-cds-border shadow-2xl overflow-hidden flex flex-col max-h-[400px] chamfer-accent">
+          <div className="p-3 bg-cds-bg border-b border-cds-border flex justify-between items-center">
+            <span className="text-label font-semibold text-cds-interactive tracking-widest uppercase">Gemini Copilot</span>
+            <button onClick={() => setIsOpen(false)} className="text-cds-text-03 hover:text-cds-text-01 transition-colors">
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 text-xs font-sans leading-relaxed text-gray-200">
+          <div className="flex-1 overflow-y-auto p-4 text-label font-sans leading-relaxed text-cds-text-02">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-8 gap-3">
-                <div className="w-8 h-8 border-2 border-[#1791cf] border-t-transparent animate-spin"></div>
-                <span className="text-gray-500 font-mono animate-pulse">ANALYZING GEOMETRY...</span>
+                {/* Carbon Loading Spinner */}
+                <div className="w-8 h-8 border-2 border-cds-interactive border-t-transparent animate-spin"></div>
+                <span className="text-cds-text-03 font-mono animate-pulse">ANALYZING GEOMETRY...</span>
               </div>
             ) : (
               <div className="whitespace-pre-wrap">{response}</div>
             )}
           </div>
-          <div className="p-2 bg-[#1a1a1a] border-t border-[#404040] text-[10px] text-gray-600 text-center uppercase tracking-tighter">
+          <div className="p-2 bg-cds-bg border-t border-cds-border text-[10px] text-cds-text-04 text-center uppercase tracking-tighter">
             Powered by Gemini 3 Flash
           </div>
         </div>
