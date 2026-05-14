@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super High Tech CNC Simulator</title>
+    <!-- IBM Plex Sans + IBM Plex Mono (Carbon Design System fonts) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -16,84 +17,40 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#1791cf",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#1A1A1A",
-                        "panel-dark": "#2B2B2B",
-                        "border-dark": "#404040",
-                        "highlight": "#3D3D3D",
+                        /* ── Carbon Gray 90 Theme Tokens ── */
+                        "cds-bg":          "#161616",   /* $background        */
+                        "cds-layer-01":    "#262626",   /* $layer-01          */
+                        "cds-layer-02":    "#393939",   /* $layer-02          */
+                        "cds-layer-03":    "#525252",   /* $layer-03          */
+                        "cds-border":      "#393939",   /* $border-subtle-01  */
+                        "cds-border-str":  "#525252",   /* $border-strong-01  */
+                        "cds-interactive": "#4589ff",   /* $interactive Blue-60 */
+                        "cds-link":        "#78a9ff",   /* $link-primary Blue-40 */
+                        "cds-success":     "#42be65",   /* $support-success   */
+                        "cds-warning":     "#f1c21b",   /* $support-warning   */
+                        "cds-error":       "#ff8389",   /* $support-error     */
+                        "cds-text-01":     "#f4f4f4",   /* $text-primary      */
+                        "cds-text-02":     "#c6c6c6",   /* $text-secondary    */
+                        "cds-text-03":     "#8d8d8d",   /* $text-helper       */
+                        "cds-text-04":     "#6f6f6f",   /* $text-placeholder  */
                     },
                     fontFamily: {
-                        "display": ["Space Grotesk", "sans-serif"],
-                        "mono": ["JetBrains Mono", "monospace"],
+                        "display": ["IBM Plex Sans", "system-ui", "sans-serif"],
+                        "mono":    ["IBM Plex Mono", "SFMono-Regular", "monospace"],
                     },
+                    /* Carbon Type Scale spacing helpers */
+                    fontSize: {
+                        "label":   ["12px", { lineHeight: "16px", letterSpacing: "0.32px" }],
+                        "body-sm": ["14px", { lineHeight: "20px", letterSpacing: "0.16px" }],
+                        "body":    ["16px", { lineHeight: "24px", letterSpacing: "0px"    }],
+                        "head-sm": ["14px", { lineHeight: "18px", letterSpacing: "0.16px", fontWeight: "600" }],
+                    }
                 }
             }
         }
     </script>
-    <style>
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1A1A1A; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #404040; 
-            border-radius: 0px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #505050; 
-        }
-        
-        /* Machined Chamfer Effects */
-        .chamfer-sm {
-            clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
-        }
-        
-        .chamfer-md {
-            clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-        }
-
-        .chamfer-lg {
-            clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
-        }
-
-        /* Top-Left / Bottom-Right Machined Cut */
-        .chamfer-accent {
-            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-        }
-
-        .hex-bg {
-            background-color: #111;
-            background-image: 
-                linear-gradient(30deg, #1A1A1A 12%, transparent 12.5%, transparent 87%, #1A1A1A 87.5%, #1A1A1A),
-                linear-gradient(150deg, #1A1A1A 12%, transparent 12.5%, transparent 87%, #1A1A1A 87.5%, #1A1A1A),
-                linear-gradient(30deg, #1A1A1A 12%, transparent 12.5%, transparent 87%, #1A1A1A 87.5%, #1A1A1A),
-                linear-gradient(150deg, #1A1A1A 12%, transparent 12.5%, transparent 87%, #1A1A1A 87.5%, #1A1A1A),
-                linear-gradient(60deg, #222 25%, transparent 25.5%, transparent 75%, #222 75%, #222),
-                linear-gradient(60deg, #222 25%, transparent 25.5%, transparent 75%, #222 75%, #222);
-            background-size: 20px 35px;
-            background-position: 0 0, 0 0, 10px 18px, 10px 18px, 0 0, 10px 18px;
-        }
-
-        .scanlines {
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0,0,0,0.1) 50%,
-                rgba(0,0,0,0.1)
-            );
-            background-size: 100% 4px;
-        }
-
-        /* Enforce sharp corners globally */
-        * {
-            border-radius: 0 !important;
-        }
-    </style>
+    <!-- Carbon tokens + base styles -->
+    <link rel="stylesheet" href="/index.css">
 <script type="importmap">
 {
   "imports": {
@@ -104,9 +61,8 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-[#1A1A1A] text-white font-display h-screen overflow-hidden">
+<body class="bg-cds-bg text-cds-text-01 font-display h-screen overflow-hidden antialiased">
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 </body>

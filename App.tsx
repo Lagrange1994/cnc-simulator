@@ -33,7 +33,7 @@ const App: React.FC = () => {
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [leftWidth, setLeftWidth] = useState(420); 
+  const [leftWidth, setLeftWidth] = useState(420);
   const [rightWidth, setRightWidth] = useState(340);
   const [terminalHeight, setTerminalHeight] = useState(200);
   const [isResizingLeft, setIsResizingLeft] = useState(false);
@@ -119,11 +119,11 @@ const App: React.FC = () => {
           const nextProgress = prev.progress + 0.5;
           const linesCount = INITIAL_GCODE.length;
           const nextIndex = Math.min(Math.floor((nextProgress / 100) * linesCount), linesCount - 1);
-          
+
           if (nextIndex !== prev.activeLineIndex) {
             const nextLine = INITIAL_GCODE[nextIndex];
             addLog(`Executing line ${nextLine.lineNum}: ${nextLine.command} ${nextLine.params || ''}`);
-            
+
             if (nextLine.params) {
               const xMatch = nextLine.params.match(/X(-?\d+\.?\d*)/);
               const yMatch = nextLine.params.match(/Y(-?\d+\.?\d*)/);
@@ -197,9 +197,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`h-screen flex flex-col bg-[#1A1A1A] text-white antialiased overflow-hidden select-none ${(isResizingLeft || isResizingRight) ? 'cursor-col-resize' : ''} ${isResizingTerminal ? 'cursor-row-resize' : ''}`}>
-      <Header 
-        onOpenFileMenu={() => setIsFileMenuOpen(true)} 
+    <div className={`h-screen flex flex-col bg-cds-bg text-cds-text-01 antialiased overflow-hidden select-none ${(isResizingLeft || isResizingRight) ? 'cursor-col-resize' : ''} ${isResizingTerminal ? 'cursor-row-resize' : ''}`}>
+      <Header
+        onOpenFileMenu={() => setIsFileMenuOpen(true)}
         onOpenEditMenu={toggleEditMenu}
         onOpenViewMenu={toggleViewMenu}
         onOpenHelpMenu={() => setIsHelpMenuOpen(true)}
@@ -208,36 +208,36 @@ const App: React.FC = () => {
         isViewActive={isViewMenuOpen}
         isHelpActive={isHelpMenuOpen}
       />
-      
+
       <main className="flex-1 flex overflow-hidden relative">
         {/* Left Side: G-Code Editor & Terminal */}
-        <div 
-          className="flex flex-col border-r border-[#404040] bg-[#141414]" 
+        <div
+          className="flex flex-col border-r border-cds-border bg-cds-bg"
           style={{ width: `${leftWidth}px` }}
         >
-           <Editor 
-            lines={INITIAL_GCODE} 
-            activeLineIndex={activeLineIndex} 
+           <Editor
+            lines={INITIAL_GCODE}
+            activeLineIndex={activeLineIndex}
           />
           {/* Vertical Resizer */}
-          <div 
+          <div
             onMouseDown={() => setIsResizingTerminal(true)}
-            className={`h-1 z-30 cursor-row-resize hover:bg-[#1791cf] transition-colors shrink-0 ${isResizingTerminal ? 'bg-[#1791cf]' : 'bg-[#404040]'}`}
+            className={`h-1 z-30 cursor-row-resize hover:bg-cds-interactive transition-colors shrink-0 ${isResizingTerminal ? 'bg-cds-interactive' : 'bg-cds-border'}`}
           />
           <Terminal logs={logs} height={terminalHeight} />
         </div>
 
         {/* Resizer Left */}
-        <div 
+        <div
           onMouseDown={() => setIsResizingLeft(true)}
-          className={`w-1 z-30 cursor-col-resize hover:bg-[#1791cf] transition-colors shrink-0 ${isResizingLeft ? 'bg-[#1791cf]' : 'bg-transparent'}`}
+          className={`w-1 z-30 cursor-col-resize hover:bg-cds-interactive transition-colors shrink-0 ${isResizingLeft ? 'bg-cds-interactive' : 'bg-transparent'}`}
         />
 
         {/* Middle: 3D Visualization */}
         <div className="flex-1 relative flex flex-col min-w-0">
-          <Viewport 
-            isSimulating={status.isSimulating} 
-            progress={status.progress} 
+          <Viewport
+            isSimulating={status.isSimulating}
+            progress={status.progress}
             coords={coords}
             lines={INITIAL_GCODE}
           />
@@ -245,17 +245,17 @@ const App: React.FC = () => {
         </div>
 
         {/* Resizer Right */}
-        <div 
+        <div
           onMouseDown={() => setIsResizingRight(true)}
-          className={`w-1 z-30 cursor-col-resize hover:bg-[#1791cf] transition-colors shrink-0 ${isResizingRight ? 'bg-[#1791cf]' : 'bg-transparent'}`}
+          className={`w-1 z-30 cursor-col-resize hover:bg-cds-interactive transition-colors shrink-0 ${isResizingRight ? 'bg-cds-interactive' : 'bg-transparent'}`}
         />
 
         {/* Right Side: DRO & Controls */}
-        <div 
-          className="flex flex-col border-l border-[#404040]" 
+        <div
+          className="flex flex-col border-l border-cds-border"
           style={{ width: `${rightWidth}px` }}
         >
-          <Sidebar 
+          <Sidebar
             coords={coords}
             status={status}
             activeTool={TOOLS[0]}
@@ -266,25 +266,22 @@ const App: React.FC = () => {
           />
         </div>
 
-        {/* Edit Menu Sidebar Overlay (Left) */}
+        {/* Edit Menu Sidebar Overlay */}
         {isEditMenuOpen && (
-          <EditSidebar 
-            onClose={() => setIsEditMenuOpen(false)} 
-          />
+          <EditSidebar onClose={() => setIsEditMenuOpen(false)} />
         )}
 
-        {/* View Menu Sidebar Overlay (Left) */}
+        {/* View Menu Sidebar Overlay */}
         {isViewMenuOpen && (
-          <ViewSidebar 
-            onClose={() => setIsViewMenuOpen(false)} 
-          />
+          <ViewSidebar onClose={() => setIsViewMenuOpen(false)} />
         )}
       </main>
-      
-      <footer className="h-6 bg-[#111] border-t border-[#404040] flex items-center px-4 justify-between text-[10px] font-mono text-gray-500 uppercase tracking-widest shrink-0">
+
+      {/* Carbon Shell Footer – $shell-panel-01 height = 24px */}
+      <footer className="h-6 bg-cds-bg border-t border-cds-border flex items-center px-4 justify-between text-[10px] font-mono text-cds-text-04 uppercase tracking-widest shrink-0">
         <div className="flex gap-4">
-          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500"></span> ENGINE: ONLINE</span>
-          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-blue-500"></span> API: CONNECTED</span>
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-cds-success"></span> ENGINE: ONLINE</span>
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-cds-interactive"></span> API: CONNECTED</span>
         </div>
         <div>BUFFER: 4096KB / LOAD: {(Math.random() * 5 + 2).toFixed(1)}%</div>
       </footer>
