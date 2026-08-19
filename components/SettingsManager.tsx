@@ -19,6 +19,14 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
   const [pauseM01, setPauseM01] = useState(false);
   const [pauseCollision, setPauseCollision] = useState(true);
   const [stockResolution, setStockResolution] = useState(80);
+  // Coarse (slider=1) -> 0.5mm voxels, Fine (slider=100) -> 0.005mm voxels.
+  const voxelSizeMm = 0.5 - ((stockResolution - 1) / 99) * (0.5 - 0.005);
+  const solverPrecisionNote =
+    stockResolution >= 67
+      ? 'Fine resolution: accurate for thin walls and small fillets, but the heaviest voxel load on GPU memory.'
+      : stockResolution >= 34
+      ? 'Balanced resolution: suitable for most roughing and semi-finishing toolpaths.'
+      : 'Coarse resolution: fastest to compute, but may miss small features under a few tenths of a millimeter.';
 
   const [editorFont, setEditorFont] = useState('IBM Plex Mono');
   const [editorFontSize, setEditorFontSize] = useState(14);
@@ -80,6 +88,29 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
   /* Shared input classes */
   const inputCls = "h-12 bg-cds-bg border border-cds-border/30 text-cds-text-02 font-mono text-label px-4 outline-none focus:border-cds-interactive appearance-none chamfer-sm transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]";
   const accentMarkCls = "w-1 h-3 bg-cds-interactive";
+
+  /* Carbon Helper Text — sits directly under a field, explains what it does or what changing it costs */
+  const HelperText = ({ children }: { children: React.ReactNode }) => (
+    <p className="text-[9px] text-cds-text-04 leading-relaxed mt-2 max-w-2xl">{children}</p>
+  );
+
+  /* Carbon Tooltip — info glyph that reveals an explanation on hover/focus, for terms a
+     non-specialist viewer wouldn't know without derailing the layout with inline copy */
+  const InfoTooltip = ({ children }: { children: React.ReactNode }) => (
+    <span className="relative inline-flex group/tooltip">
+      <button
+        type="button"
+        tabIndex={0}
+        className="text-cds-text-04 hover:text-cds-interactive focus:text-cds-interactive transition-colors"
+        aria-label="More information"
+      >
+        <span className="material-symbols-outlined text-sm align-middle">info</span>
+      </button>
+      <span className="pointer-events-none absolute left-1/2 bottom-full -translate-x-1/2 mb-2 w-64 bg-black border border-cds-border-str/50 text-cds-text-02 text-[9px] leading-relaxed p-3 chamfer-sm shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible group-focus-within/tooltip:opacity-100 group-focus-within/tooltip:visible transition-opacity z-30 normal-case tracking-normal font-normal">
+        {children}
+      </span>
+    </span>
+  );
 
   return (
     <div className="fixed inset-0 bg-cds-bg/95 backdrop-blur-xl z-[150] flex items-center justify-center p-8 animate-in fade-in duration-300">
@@ -297,8 +328,13 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                   </div>
 
                   <div className="mb-8">
-                    <label className="text-[10px] text-cds-text-03 block mb-2 uppercase font-semibold tracking-widest flex items-center gap-2">
+                    <label className="text-[10px] text-cds-text-03 mb-2 uppercase font-semibold tracking-widest flex items-center gap-2">
                       <span className={accentMarkCls}></span> CNC Controller Definition
+                      <InfoTooltip>
+                        Selects which controller's G-code dialect and cycle syntax the simulator
+                        interprets (e.g. FANUC canned cycles vs. Siemens cycle calls aren't
+                        identical). Match this to the machine this program will actually run on.
+                      </InfoTooltip>
                     </label>
                     <div className="relative w-full max-w-md">
                       <select className={`w-full ${inputCls}`}>
@@ -332,6 +368,12 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                         </div>
                       ))}
                     </div>
+                    <HelperText>
+                      Software-enforced travel boundaries relative to machine home. A rapid or
+                      feed move that would cross a limit triggers a soft-limit fault and halts
+                      motion before the axis physically reaches it — this does not replace the
+                      machine's hardware limit switches.
+                    </HelperText>
                   </div>
 
                   <div className="mb-8">
@@ -441,7 +483,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                     <div className="bg-cds-layer-02 p-6 border border-cds-border/20 chamfer-sm">
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-[10px] font-semibold text-cds-text-02 uppercase tracking-wide">Stock Resolution (Voxel Size)</span>
-                        <span className="text-label font-mono text-cds-interactive font-semibold">0.01mm</span>
+                        <span className="text-label font-mono text-cds-interactive font-semibold">{voxelSizeMm.toFixed(3)}mm</span>
                       </div>
                       <input
                         type="range" min="1" max="100"
@@ -455,7 +497,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                       </div>
                       <div className="flex items-center gap-2 text-[9px] text-cds-text-03 bg-black/40 p-2 border border-cds-border/20">
                         <span className="material-symbols-outlined text-sm">info</span>
-                        Higher precision drastically impacts GPU memory usage and framerate.
+                        {solverPrecisionNote}
                       </div>
                     </div>
                   </div>
