@@ -11,10 +11,12 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const analyzeGCode = async () => {
     setLoading(true);
     setIsOpen(true);
+    setError(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const gcodeStr = currentGCode.map(l => `${l.command} ${l.params || ''}`).join('\n');
@@ -32,7 +34,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
 
       setResponse(res.text || "No analysis available.");
     } catch (err) {
-      setResponse("Error connecting to Gemini AI.");
+      setError("Couldn't reach Gemini AI. Check your API key in Settings or your network connection, then try again.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +55,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
 
       {isOpen && (
         /* Carbon Popover / Panel */
-        <div className="absolute bottom-16 left-0 w-80 bg-cds-layer-01 border border-cds-border shadow-2xl overflow-hidden flex flex-col max-h-[400px] chamfer-accent">
+        <div className="absolute bottom-28 left-0 w-72 bg-cds-layer-01 border border-cds-border shadow-2xl overflow-hidden flex flex-col max-h-[400px] chamfer-accent">
           <div className="p-3 bg-cds-bg border-b border-cds-border flex justify-between items-center">
             <span className="text-label font-semibold text-cds-interactive tracking-widest uppercase">Gemini Copilot</span>
             <button onClick={() => setIsOpen(false)} className="text-cds-text-03 hover:text-cds-text-01 transition-colors">
@@ -66,6 +68,19 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
                 {/* Carbon Loading Spinner */}
                 <div className="w-8 h-8 border-2 border-cds-interactive border-t-transparent animate-spin"></div>
                 <span className="text-cds-text-03 font-mono animate-pulse">ANALYZING GEOMETRY...</span>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-2 text-cds-error">
+                  <span className="material-symbols-outlined text-lg shrink-0">error</span>
+                  <span>{error}</span>
+                </div>
+                <button
+                  onClick={analyzeGCode}
+                  className="self-start px-3 py-1.5 border border-cds-interactive/40 text-cds-interactive hover:bg-cds-interactive/10 transition-colors text-[11px] font-semibold uppercase tracking-widest chamfer-sm"
+                >
+                  Retry
+                </button>
               </div>
             ) : (
               <div className="whitespace-pre-wrap">{response}</div>
