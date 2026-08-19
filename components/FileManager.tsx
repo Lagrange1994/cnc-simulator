@@ -13,8 +13,8 @@ interface FileCardProps {
 const FileCard: React.FC<FileCardProps> = ({ title, edited, machine, time, thumbnail, tag }) => (
   <div className="bg-cds-bg/60 hover:bg-cds-layer-01 border border-cds-border/30 group transition-all duration-300 cursor-pointer chamfer-md flex flex-col relative overflow-hidden">
     <div className="relative h-32 w-full overflow-hidden">
-      <img src={thumbnail} alt={title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 scale-100 group-hover:scale-105" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+      <img src={thumbnail} alt={title} className="w-full h-full object-cover grayscale-[35%] group-hover:grayscale-0 transition-all duration-500 scale-100 group-hover:scale-105" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent"></div>
       {tag && (
         <span className="absolute top-2 right-2 px-2 py-0.5 bg-cds-interactive/20 border border-cds-interactive/40 text-[8px] font-mono text-cds-interactive tracking-widest uppercase">
           {tag}
