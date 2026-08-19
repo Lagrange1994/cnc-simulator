@@ -184,7 +184,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
       <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-black/80 to-transparent z-10 flex justify-between items-start p-4 pointer-events-none">
         <div className="flex gap-2">
           <div className="inline-flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1 rounded-sm text-xs font-mono text-gray-300 pointer-events-auto">
-            <span className={`w-2 h-2 rounded-full ${isSimulating ? 'bg-[#1791cf] animate-pulse' : 'bg-gray-500'}`}></span>
+            <span className={`w-2 h-2 rounded-full ${isSimulating ? 'bg-[#4589ff] animate-pulse' : 'bg-gray-500'}`}></span>
             {isSimulating ? 'SIMULATION ACTIVE' : 'IDLE'}
           </div>
           {/* Quick View Presets */}
@@ -221,7 +221,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
           </button>
           <button 
             onClick={frameTool}
-            className="p-1.5 hover:bg-white/10 text-[#1791cf] rounded-sm transition-colors" 
+            className="p-1.5 hover:bg-white/10 text-[#4589ff] rounded-sm transition-colors" 
             title="Frame Tool (.)"
           >
             <span className="material-symbols-outlined text-lg">my_location</span>
@@ -267,7 +267,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
             <path 
               d={toolpathData} 
               fill="none" 
-              stroke="#1791cf33" 
+              stroke="#4589ff33" 
               strokeWidth="2" 
               strokeDasharray="4,4"
             />
@@ -275,7 +275,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
             <path 
               d={toolpathData} 
               fill="none" 
-              stroke="#1791cf" 
+              stroke="#4589ff" 
               strokeWidth="2" 
               strokeDasharray="10000"
               strokeDashoffset={10000 - (10000 * (progress / 100))}
@@ -301,7 +301,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
 
           {/* Coordinate Tag */}
           <div 
-            className="absolute bg-black/80 backdrop-blur-sm border border-[#1791cf]/40 text-[#1791cf] text-[10px] font-mono px-2 py-0.5 rounded-sm shadow-xl z-10 transition-all duration-100 ease-linear pointer-events-none"
+            className="absolute bg-black/80 backdrop-blur-sm border border-[#4589ff]/40 text-[#4589ff] text-[10px] font-mono px-2 py-0.5 rounded-sm shadow-xl z-10 transition-all duration-100 ease-linear pointer-events-none"
             style={{ 
               left: `${500 + coords.x * 2 + 15}px`, 
               top: `${300 - coords.y * 2 - 15}px`,
@@ -339,16 +339,16 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
         <div className="flex justify-between items-center mb-2 text-xs text-gray-400 font-mono">
           <span>RUN TIME: 00:00:{(progress * 0.45).toFixed(0).padStart(2, '0')}</span>
           <div className="flex items-center gap-2">
-            <span className="text-[#1791cf] font-bold">COMPLETION {progress}%</span>
+            <span className="text-[#4589ff] font-bold">COMPLETION {progress}%</span>
             <div className="w-24 h-1 bg-black/40 rounded-full overflow-hidden">
-               <div className="h-full bg-[#1791cf]" style={{ width: `${progress}%` }}></div>
+               <div className="h-full bg-[#4589ff]" style={{ width: `${progress}%` }}></div>
             </div>
           </div>
           <span>EST: 00:00:45</span>
         </div>
         <div className="relative h-2 bg-black/50 rounded-sm overflow-hidden border border-white/5">
           <div 
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#1791cf] to-[#1791cf]/60 shadow-[0_0_10px_rgba(23,145,207,0.5)] transition-all duration-300"
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#4589ff] to-[#4589ff]/60 shadow-[0_0_10px_rgba(23,145,207,0.5)] transition-all duration-300"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
