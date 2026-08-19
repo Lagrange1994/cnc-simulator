@@ -13,7 +13,7 @@ import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import { Coordinates, MachineStatus, LogMessage } from './types';
 import { INITIAL_GCODE, TOOLS } from './constants';
-import { computeGCodeTimeline, findActiveEntry } from './lib/gcode/parser';
+import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 
 const App: React.FC = () => {
   const [activeLineIndex, setActiveLineIndex] = useState(0);
@@ -110,6 +110,11 @@ const App: React.FC = () => {
   // actually takes longer to animate than the same distance at F5000.
   const gcodeTimeline = useMemo(
     () => computeGCodeTimeline(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200),
+    []
+  );
+
+  const programSummary = useMemo(
+    () => summarizeProgram(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200),
     []
   );
 
@@ -294,6 +299,7 @@ const App: React.FC = () => {
             status={status}
             activeTool={TOOLS[0]}
             nextTool={TOOLS[1]}
+            programSummary={programSummary}
             onCycleStart={handleCycleStart}
             onFeedHold={handleFeedHold}
             onReset={handleReset}

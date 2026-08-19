@@ -124,3 +124,50 @@ export function findActiveEntry(timeline: GCodeTimeline, elapsedMs: number): GCo
   }
   return entries[entries.length - 1];
 }
+
+export interface ProgramSummary {
+  totalDurationMs: number;
+  totalToolpathLengthMm: number;
+  peakSpindleRpm: number;
+  peakFeedRateMmPerMin: number;
+}
+
+/**
+ * Aggregates a program into headline numbers for a results/summary display.
+ * Everything here is derived directly from the G-code (no invented physics)
+ * — cycle time from the same timeline the simulator plays back, toolpath
+ * length from summed segment distances, peak spindle/feed from the highest
+ * value active at any point in the program.
+ */
+export function summarizeProgram(
+  lines: GCodeLine[],
+  startCoords: Coordinates,
+  initialFeedRateMmPerMin: number,
+  rapidRateMmPerMin = 30000
+): ProgramSummary {
+  const timeline = computeGCodeTimeline(lines, startCoords, initialFeedRateMmPerMin, rapidRateMmPerMin);
+
+  let toolpathLengthMm = 0;
+  let peakSpindleRpm = 0;
+  let peakFeedRateMmPerMin = 0;
+  let currentSpindleRpm = 0;
+  let prevCoords = startCoords;
+
+  for (const entry of timeline.entries) {
+    if (entry.line.command === 'G00' || entry.line.command === 'G01') {
+      toolpathLengthMm += distance3D(prevCoords, entry.coords);
+    }
+    prevCoords = entry.coords;
+
+    if (entry.spindleRpm !== undefined) currentSpindleRpm = entry.spindleRpm;
+    peakSpindleRpm = Math.max(peakSpindleRpm, currentSpindleRpm);
+    peakFeedRateMmPerMin = Math.max(peakFeedRateMmPerMin, entry.feedRate);
+  }
+
+  return {
+    totalDurationMs: timeline.totalDurationMs,
+    totalToolpathLengthMm: toolpathLengthMm,
+    peakSpindleRpm,
+    peakFeedRateMmPerMin,
+  };
+}

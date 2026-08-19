@@ -3,8 +3,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Sidebar from './Sidebar';
 import { Coordinates, MachineStatus, Tool } from '../types';
+import { ProgramSummary } from '../lib/gcode/parser';
 
 const coords: Coordinates = { x: 1, y: 2, z: 3 };
+const programSummary: ProgramSummary = {
+  totalDurationMs: 45000,
+  totalToolpathLengthMm: 200,
+  peakSpindleRpm: 12000,
+  peakFeedRateMmPerMin: 1200,
+};
 const status: MachineStatus = {
   spindleRpm: 0,
   feedRate: 1200,
@@ -26,6 +33,7 @@ function renderSidebar(statusOverride: Partial<MachineStatus> = {}) {
       status={{ ...status, ...statusOverride }}
       activeTool={activeTool}
       nextTool={nextTool}
+      programSummary={programSummary}
       onCycleStart={onCycleStart}
       onFeedHold={onFeedHold}
       onReset={onReset}

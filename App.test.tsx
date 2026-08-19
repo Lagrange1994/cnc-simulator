@@ -1,11 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import App from './App';
 
 function completionPercent(): number {
   const text = screen.getByText(/COMPLETION/).textContent || '';
   const match = text.match(/COMPLETION\s*([\d.]+)%/);
   return match ? parseFloat(match[1]) : NaN;
+}
+
+// Scopes to the live SPINDLE (RPM) status card, not the Cutting Result
+// panel's "Peak Spindle" stat -- both can show the same number.
+function liveSpindleCard() {
+  // The label renders as "Spindle (RPM)" in the DOM; ALL CAPS is CSS only.
+  return screen.getByText('Spindle (RPM)').closest('div')!.parentElement!;
 }
 
 // fireEvent (not userEvent) is used throughout: userEvent's pointer-delay
@@ -88,7 +95,7 @@ describe('App simulation loop', () => {
       vi.advanceTimersByTime(2000);
     });
 
-    expect(screen.getByText('12,000')).toBeInTheDocument();
+    expect(within(liveSpindleCard()).getByText('12,000')).toBeInTheDocument();
   });
 
   it('catches up a skipped S-word when a throttled tab makes one tick span multiple lines', () => {
@@ -106,7 +113,7 @@ describe('App simulation loop', () => {
     });
 
     expect(screen.getByText(/Executing line 004: M03 S12000/)).toBeInTheDocument();
-    expect(screen.getByText('12,000')).toBeInTheDocument();
+    expect(within(liveSpindleCard()).getByText('12,000')).toBeInTheDocument();
   });
 
   it('reaches the true final coordinates and logs the last line when a tick jumps straight past completion', () => {

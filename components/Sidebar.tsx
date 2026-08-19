@@ -1,24 +1,29 @@
 
 import React from 'react';
 import { Coordinates, MachineStatus, Tool } from '../types';
+import { ProgramSummary } from '../lib/gcode/parser';
+import CuttingResult from './CuttingResult';
 
 interface SidebarProps {
   coords: Coordinates;
   status: MachineStatus;
   activeTool: Tool;
   nextTool: Tool;
+  programSummary: ProgramSummary;
   onCycleStart: () => void;
   onFeedHold: () => void;
   onReset: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  coords, status, activeTool, nextTool,
+  coords, status, activeTool, nextTool, programSummary,
   onCycleStart, onFeedHold, onReset
 }) => {
   return (
     <aside className="flex-1 flex flex-col bg-cds-bg border-cds-border shadow-xl z-20 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
+
+        <CuttingResult summary={programSummary} />
 
         {/* Digital Read Out (DRO) – Carbon $layer-01 panel */}
         <div className="p-6 border-b border-cds-border bg-cds-layer-01">
