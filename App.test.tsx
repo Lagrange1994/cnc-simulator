@@ -90,4 +90,53 @@ describe('App simulation loop', () => {
 
     expect(screen.getByText('12,000')).toBeInTheDocument();
   });
+
+  it('catches up a skipped S-word when a throttled tab makes one tick span multiple lines', () => {
+    // Regression test for the adversarial-review finding: browsers throttle
+    // setInterval to ~1/sec in backgrounded tabs, so a single tick can span
+    // several 150-300ms line windows. Simulate that by jumping the clock
+    // far forward and firing exactly one 100ms tick, skipping past line 004
+    // (M03 S12000) without ever landing on it directly.
+    render(<App />);
+
+    fireEvent.click(screen.getByText('CYCLE START'));
+    act(() => {
+      vi.setSystemTime(Date.now() + 1300);
+      vi.advanceTimersByTime(100); // exactly one throttled tick
+    });
+
+    expect(screen.getByText(/Executing line 004: M03 S12000/)).toBeInTheDocument();
+    expect(screen.getByText('12,000')).toBeInTheDocument();
+  });
+
+  it('reaches the true final coordinates and logs the last line when a tick jumps straight past completion', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByText('CYCLE START'));
+    act(() => {
+      vi.setSystemTime(Date.now() + 60000); // one huge throttled jump
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(screen.getByText('COMPLETION 100%')).toBeInTheDocument();
+    expect(screen.getByText(/Executing line 013: M30/)).toBeInTheDocument();
+    // Final program state: G00 Z10 (line 011) returns to X0 Y0 Z10.
+    expect(screen.getAllByText('0000.000')).toHaveLength(2); // X and Y
+    expect(screen.getByText('0010.000')).toBeInTheDocument(); // Z
+  });
+
+  it('renders progress as a clean rounded percentage, not a long float', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByText('CYCLE START'));
+    act(() => {
+      vi.advanceTimersByTime(437); // an elapsed time unlikely to divide evenly
+    });
+
+    const text = screen.getByText(/COMPLETION/).textContent || '';
+    const match = text.match(/COMPLETION\s*([\d.]+)%/);
+    expect(match).not.toBeNull();
+    const decimals = (match![1].split('.')[1] || '').length;
+    expect(decimals).toBeLessThanOrEqual(1);
+  });
 });

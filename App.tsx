@@ -127,41 +127,62 @@ const App: React.FC = () => {
     // Start resumes mid-program instead of restarting the clock.
     const startedAt = Date.now() - (status.progress / 100) * gcodeTimeline.totalDurationMs;
 
+    // Applies every timeline entry from just after the last-seen line
+    // through targetIndex (inclusive), not just whichever entry the clock
+    // currently lands in. A backgrounded/throttled tab can make setInterval
+    // fire as rarely as once a second, jumping `elapsed` past several line
+    // windows (150-300ms each) in one tick — without this catch-up, a
+    // skipped line's S-word (spindle RPM) or final coordinates would never
+    // be applied, silently desyncing the displayed machine state from the
+    // program's actual position.
+    const applyThrough = (targetIndex: number) => {
+      let latestSpindle: number | undefined;
+      for (let i = lastLineIndexRef.current + 1; i <= targetIndex; i++) {
+        const e = gcodeTimeline.entries[i];
+        addLog(`Executing line ${e.line.lineNum}: ${e.line.command} ${e.line.params || ''}`);
+        if (e.spindleRpm !== undefined) latestSpindle = e.spindleRpm;
+      }
+      const finalEntry = gcodeTimeline.entries[targetIndex];
+      lastLineIndexRef.current = targetIndex;
+      setCoords(finalEntry.coords);
+      return { feedRate: finalEntry.feedRate, spindleRpm: latestSpindle };
+    };
+
     const interval = setInterval(() => {
       const elapsed = Date.now() - startedAt;
 
       if (elapsed >= gcodeTimeline.totalDurationMs) {
         clearInterval(interval);
+        const lastIndex = gcodeTimeline.entries.length - 1;
+        const { feedRate, spindleRpm } = applyThrough(lastIndex);
         addLog("Program execution complete.", "success");
-        setStatus(prev => ({ ...prev, isSimulating: false, progress: 100 }));
+        setStatus(prev => ({
+          ...prev,
+          isSimulating: false,
+          progress: 100,
+          activeLineIndex: lastIndex,
+          feedRate,
+          spindleRpm: spindleRpm !== undefined ? spindleRpm : prev.spindleRpm,
+        }));
         return;
       }
 
       const entry = findActiveEntry(gcodeTimeline, elapsed);
-      const nextProgress = (elapsed / gcodeTimeline.totalDurationMs) * 100;
+      const nextProgress = Math.round((elapsed / gcodeTimeline.totalDurationMs) * 1000) / 10;
       const lineChanged = entry.index !== lastLineIndexRef.current;
 
-      // Side effects live here, outside the setStatus updater below — React
-      // StrictMode double-invokes updater functions in dev to catch exactly
-      // this class of bug (a non-pure updater), which was silently logging
-      // and moving the tool twice per line.
       if (lineChanged) {
-        lastLineIndexRef.current = entry.index;
-        addLog(`Executing line ${entry.line.lineNum}: ${entry.line.command} ${entry.line.params || ''}`);
-        setCoords(entry.coords);
+        const { feedRate, spindleRpm } = applyThrough(entry.index);
+        setStatus(prev => ({
+          ...prev,
+          progress: nextProgress,
+          activeLineIndex: entry.index,
+          feedRate,
+          spindleRpm: spindleRpm !== undefined ? spindleRpm : prev.spindleRpm,
+        }));
+      } else {
+        setStatus(prev => ({ ...prev, progress: nextProgress }));
       }
-
-      setStatus(prev => (
-        lineChanged
-          ? {
-              ...prev,
-              progress: nextProgress,
-              activeLineIndex: entry.index,
-              feedRate: entry.feedRate,
-              spindleRpm: entry.spindleRpm !== undefined ? entry.spindleRpm : prev.spindleRpm,
-            }
-          : { ...prev, progress: nextProgress }
-      ));
     }, 100);
 
     return () => clearInterval(interval);
