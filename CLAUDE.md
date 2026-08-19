@@ -16,3 +16,15 @@ Key routing rules:
 - Save progress → invoke /context-save
 - Resume context → invoke /context-restore
 - Author a backlog-ready spec/issue → invoke /spec
+
+## Testing
+
+Run tests with `npm test` (Vitest + React Testing Library, jsdom). Test directory:
+component tests are colocated as `*.test.tsx` next to the component. See TESTING.md.
+
+- 100% test coverage is the goal — tests make vibe coding safe.
+- When writing new functions, write a corresponding test.
+- When fixing a bug, write a regression test.
+- When adding error handling, write a test that triggers the error.
+- When adding a conditional (if/else, switch), write tests for BOTH paths.
+- Never commit code that makes existing tests fail.
