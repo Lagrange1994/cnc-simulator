@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import Editor from './components/Editor';
 import Viewport from './components/Viewport';
@@ -13,6 +13,7 @@ import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import { Coordinates, MachineStatus, LogMessage } from './types';
 import { INITIAL_GCODE, TOOLS } from './constants';
+import { computeGCodeTimeline, findActiveEntry } from './lib/gcode/parser';
 
 const App: React.FC = () => {
   const [activeLineIndex, setActiveLineIndex] = useState(0);
@@ -104,55 +105,55 @@ const App: React.FC = () => {
     };
   }, [isResizingLeft, isResizingRight, isResizingTerminal]);
 
+  // G-code timeline: precomputed once since INITIAL_GCODE is static. Feed
+  // rate (F-word) drives each motion line's duration, so a G01 F100 move
+  // actually takes longer to animate than the same distance at F5000.
+  const gcodeTimeline = useMemo(
+    () => computeGCodeTimeline(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200),
+    []
+  );
+
   // Movement Logic
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    if (!status.isSimulating) return;
 
-    if (status.isSimulating) {
-      interval = setInterval(() => {
-        setStatus(prev => {
-          if (prev.progress >= 100) {
-            addLog("Program execution complete.", "success");
-            return { ...prev, isSimulating: false, progress: 100 };
-          }
+    // Recompute the start time from current progress so Feed Hold -> Cycle
+    // Start resumes mid-program instead of restarting the clock.
+    const startedAt = Date.now() - (status.progress / 100) * gcodeTimeline.totalDurationMs;
 
-          const nextProgress = prev.progress + 0.5;
-          const linesCount = INITIAL_GCODE.length;
-          const nextIndex = Math.min(Math.floor((nextProgress / 100) * linesCount), linesCount - 1);
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startedAt;
 
-          if (nextIndex !== prev.activeLineIndex) {
-            const nextLine = INITIAL_GCODE[nextIndex];
-            addLog(`Executing line ${nextLine.lineNum}: ${nextLine.command} ${nextLine.params || ''}`);
+      if (elapsed >= gcodeTimeline.totalDurationMs) {
+        clearInterval(interval);
+        addLog("Program execution complete.", "success");
+        setStatus(prev => ({ ...prev, isSimulating: false, progress: 100 }));
+        return;
+      }
 
-            if (nextLine.params) {
-              const xMatch = nextLine.params.match(/X(-?\d+\.?\d*)/);
-              const yMatch = nextLine.params.match(/Y(-?\d+\.?\d*)/);
-              const zMatch = nextLine.params.match(/Z(-?\d+\.?\d*)/);
-              const sMatch = nextLine.params.match(/S(\d+)/);
+      const entry = findActiveEntry(gcodeTimeline, elapsed);
+      const nextProgress = (elapsed / gcodeTimeline.totalDurationMs) * 100;
 
-              setCoords(c => ({
-                x: xMatch ? parseFloat(xMatch[1]) : c.x,
-                y: yMatch ? parseFloat(yMatch[1]) : c.y,
-                z: zMatch ? parseFloat(zMatch[1]) : c.z,
-              }));
+      setStatus(prev => {
+        if (entry.index === prev.activeLineIndex) {
+          return { ...prev, progress: nextProgress };
+        }
 
-              if (sMatch) {
-                setStatus(s => ({ ...s, spindleRpm: parseInt(sMatch[1]) }));
-              }
-            }
-          }
+        addLog(`Executing line ${entry.line.lineNum}: ${entry.line.command} ${entry.line.params || ''}`);
+        setCoords(entry.coords);
 
-          return {
-            ...prev,
-            progress: nextProgress,
-            activeLineIndex: nextIndex
-          };
-        });
-      }, 100);
-    }
+        return {
+          ...prev,
+          progress: nextProgress,
+          activeLineIndex: entry.index,
+          feedRate: entry.feedRate,
+          spindleRpm: entry.spindleRpm !== undefined ? entry.spindleRpm : prev.spindleRpm,
+        };
+      });
+    }, 100);
 
     return () => clearInterval(interval);
-  }, [status.isSimulating, addLog]);
+  }, [status.isSimulating, gcodeTimeline, addLog]);
 
   useEffect(() => {
     setActiveLineIndex(status.activeLineIndex);

@@ -1,6 +1,7 @@
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Coordinates, GCodeLine } from '../types';
+import { parseGCodeParams } from '../lib/gcode/parser';
 
 interface ViewportProps {
   isSimulating: boolean;
@@ -29,11 +30,10 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
     
     lines.forEach(line => {
       if (line.command === 'G00' || line.command === 'G01') {
-        const xMatch = line.params?.match(/X(-?\d+\.?\d*)/);
-        const yMatch = line.params?.match(/Y(-?\d+\.?\d*)/);
-        if (xMatch) currentX = parseFloat(xMatch[1]);
-        if (yMatch) currentY = parseFloat(yMatch[1]);
-        
+        const { x, y } = parseGCodeParams(line.params);
+        if (x !== undefined) currentX = x;
+        if (y !== undefined) currentY = y;
+
         // Scale and shift for visualization: 500 is center
         pathSegments.push(`L ${500 + currentX * 2} ${300 - currentY * 2}`);
       }
