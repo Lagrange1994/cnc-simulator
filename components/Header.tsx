@@ -59,13 +59,13 @@ const Header: React.FC<HeaderProps> = ({
       <nav className="hidden lg:flex items-center gap-px mx-8 bg-cds-layer-01/50 p-px border border-cds-border">
         <button
           onClick={onOpenFileMenu}
-          className="px-4 py-1.5 hover:bg-white/10 text-cds-text-02 text-body-sm font-medium transition-colors"
+          className="px-4 min-h-11 flex items-center justify-center hover:bg-white/10 text-cds-text-02 text-body-sm font-medium transition-colors"
         >
           File
         </button>
         <button
           onClick={onOpenEditMenu}
-          className={`px-4 py-1.5 text-body-sm font-medium transition-colors ${
+          className={`px-4 min-h-11 flex items-center justify-center text-body-sm font-medium transition-colors ${
             isEditActive
               ? 'bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30'
               : 'hover:bg-white/10 text-cds-text-02'
@@ -75,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({
         </button>
         <button
           onClick={onOpenViewMenu}
-          className={`px-4 py-1.5 text-body-sm font-medium transition-colors ${
+          className={`px-4 min-h-11 flex items-center justify-center text-body-sm font-medium transition-colors ${
             isViewActive
               ? 'bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30'
               : 'hover:bg-white/10 text-cds-text-02'
@@ -84,12 +84,12 @@ const Header: React.FC<HeaderProps> = ({
           View
         </button>
         {/* Active / selected tab – Carbon $interactive fill */}
-        <button className="px-4 py-1.5 bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30 text-body-sm font-semibold shadow-[0_0_10px_rgba(69,137,255,0.2)]">
+        <button className="px-4 min-h-11 flex items-center justify-center bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30 text-body-sm font-semibold shadow-[0_0_10px_rgba(69,137,255,0.2)]">
           Simulation
         </button>
         <button
           onClick={onOpenHelpMenu}
-          className={`px-4 py-1.5 text-body-sm font-medium transition-colors ${
+          className={`px-4 min-h-11 flex items-center justify-center text-body-sm font-medium transition-colors ${
             isHelpActive
               ? 'bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30'
               : 'hover:bg-white/10 text-cds-text-02'
@@ -107,13 +107,13 @@ const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="h-8 w-px bg-cds-border mx-1"></div>
         <div className="flex gap-1">
-          <button className="p-2 text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative">
+          <button className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative">
             <span className="material-symbols-outlined text-[20px]">notifications</span>
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-cds-interactive"></span>
+            <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-cds-interactive"></span>
           </button>
           <button
             onClick={onOpenSettings}
-            className="p-2 text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors"
+            className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors"
             title="System Configuration"
           >
             <span className="material-symbols-outlined text-[20px]">settings</span>

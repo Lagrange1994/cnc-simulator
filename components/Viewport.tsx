@@ -188,40 +188,40 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
             {isSimulating ? 'SIMULATION ACTIVE' : 'IDLE'}
           </div>
           {/* Quick View Presets */}
-          <div className="flex bg-black/60 backdrop-blur-md border border-white/10 p-1 rounded-sm pointer-events-auto text-[10px] font-bold text-gray-400">
-             <button onClick={() => setRotation({ x: 0, z: 0 })} className="px-2 hover:text-white border-r border-white/5">TOP (7)</button>
-             <button onClick={() => setRotation({ x: 90, z: 0 })} className="px-2 hover:text-white border-r border-white/5">FRONT (1)</button>
-             <button onClick={() => setRotation({ x: 90, z: 90 })} className="px-2 hover:text-white">RIGHT (3)</button>
+          <div className="flex items-stretch bg-black/60 backdrop-blur-md border border-white/10 p-1 rounded-sm pointer-events-auto text-[10px] font-bold text-gray-400">
+             <button onClick={() => setRotation({ x: 0, z: 0 })} className="px-2 min-h-11 flex items-center hover:text-white border-r border-white/5">TOP (7)</button>
+             <button onClick={() => setRotation({ x: 90, z: 0 })} className="px-2 min-h-11 flex items-center hover:text-white border-r border-white/5">FRONT (1)</button>
+             <button onClick={() => setRotation({ x: 90, z: 90 })} className="px-2 min-h-11 flex items-center hover:text-white">RIGHT (3)</button>
           </div>
         </div>
         
         {/* View Controls */}
-        <div className="flex gap-1 bg-black/60 backdrop-blur-md border border-white/10 p-1 rounded-sm pointer-events-auto">
-          <button 
-            onClick={() => adjustZoom(0.2)} 
-            className="p-1.5 hover:bg-white/10 text-white rounded-sm transition-colors" 
+        <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md border border-white/10 p-1 rounded-sm pointer-events-auto">
+          <button
+            onClick={() => adjustZoom(0.2)}
+            className="size-11 flex items-center justify-center hover:bg-white/10 text-white rounded-sm transition-colors"
             title="Zoom In"
           >
             <span className="material-symbols-outlined text-lg">add</span>
           </button>
-          <button 
-            onClick={() => adjustZoom(-0.2)} 
-            className="p-1.5 hover:bg-white/10 text-white rounded-sm transition-colors" 
+          <button
+            onClick={() => adjustZoom(-0.2)}
+            className="size-11 flex items-center justify-center hover:bg-white/10 text-white rounded-sm transition-colors"
             title="Zoom Out"
           >
             <span className="material-symbols-outlined text-lg">remove</span>
           </button>
           <div className="w-[1px] h-4 bg-white/20 my-auto"></div>
-          <button 
-            onClick={resetView} 
-            className="p-1.5 hover:bg-white/10 text-white rounded-sm transition-colors" 
+          <button
+            onClick={resetView}
+            className="size-11 flex items-center justify-center hover:bg-white/10 text-white rounded-sm transition-colors"
             title="Reset View (Home)"
           >
             <span className="material-symbols-outlined text-lg">center_focus_strong</span>
           </button>
-          <button 
+          <button
             onClick={frameTool}
-            className="p-1.5 hover:bg-white/10 text-[#4589ff] rounded-sm transition-colors" 
+            className="size-11 flex items-center justify-center hover:bg-white/10 text-[#4589ff] rounded-sm transition-colors"
             title="Frame Tool (.)"
           >
             <span className="material-symbols-outlined text-lg">my_location</span>
