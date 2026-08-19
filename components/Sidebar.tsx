@@ -22,9 +22,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Digital Read Out (DRO) – Carbon $layer-01 panel */}
         <div className="p-6 border-b border-cds-border bg-cds-layer-01">
-          <h3 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">my_location</span> Coordinates
-          </h3>
+          </h2>
           <div className="grid grid-cols-1 gap-3 font-mono">
             <DROField label="X" value={coords.x} color="red-500" />
             <DROField label="Y" value={coords.y} color="cds-success" />
@@ -34,9 +34,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Machine Status */}
         <div className="p-6 border-b border-cds-border">
-          <h3 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">speed</span> Status
-          </h3>
+          </h2>
           <div className="grid grid-cols-2 gap-4">
             <StatusCard label="Spindle (RPM)" value={status.spindleRpm.toLocaleString()} fillPercent={status.isSimulating ? 80 : 0} color="white" />
             <StatusCard label="Feed (mm/m)"   value={status.feedRate}                   fillPercent={status.isSimulating ? 40 : 0} color="interactive" />
@@ -45,9 +45,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Tools Section */}
         <div className="flex-1 flex flex-col p-6">
-          <h3 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">handyman</span> Tooling
-          </h3>
+          </h2>
 
           {/* Active Tool – Carbon $layer-02 */}
           <div className="bg-cds-layer-01 border border-cds-border p-4 flex gap-4 items-center shrink-0">

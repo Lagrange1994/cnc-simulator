@@ -12,10 +12,10 @@ const Editor: React.FC<EditorProps> = ({ lines, activeLineIndex }) => {
     <aside className="flex-1 flex flex-col bg-cds-bg overflow-hidden">
       {/* Carbon $layer-01 toolbar */}
       <div className="h-10 bg-cds-layer-01 flex items-center justify-between px-4 border-b border-cds-border shrink-0">
-        <h3 className="text-body-sm font-semibold text-cds-text-01 uppercase tracking-wider flex items-center gap-2">
+        <h2 className="text-body-sm font-semibold text-cds-text-01 uppercase tracking-wider flex items-center gap-2">
           <span className="material-symbols-outlined text-sm text-cds-interactive">code</span>
           G-Code Editor
-        </h3>
+        </h2>
         <div className="flex gap-1">
           <button className="p-1 hover:text-cds-text-01 text-cds-text-03 transition-colors">
             <span className="material-symbols-outlined text-sm">upload_file</span>
