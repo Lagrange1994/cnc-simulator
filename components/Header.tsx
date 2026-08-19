@@ -41,6 +41,7 @@ const Header: React.FC<HeaderProps> = ({
   isViewActive,
   isHelpActive
 }) => {
+  const isAnyOtherTabActive = isEditActive || isViewActive || isHelpActive;
   return (
     /* Carbon Shell Header height = 48px; we keep 56px (h-14) for DRO-heavy layout */
     <header className="h-14 bg-cds-bg border-b border-cds-border flex items-center justify-between px-6 shrink-0 z-20">
@@ -83,8 +84,14 @@ const Header: React.FC<HeaderProps> = ({
         >
           View
         </button>
-        {/* Active / selected tab – Carbon $interactive fill */}
-        <button className="px-4 min-h-11 flex items-center justify-center bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30 text-body-sm font-semibold shadow-[0_0_10px_rgba(69,137,255,0.2)]">
+        {/* Default mode tab – only shown as selected when no other panel is open */}
+        <button
+          className={`px-4 min-h-11 flex items-center justify-center text-body-sm font-semibold transition-colors ${
+            isAnyOtherTabActive
+              ? 'text-cds-text-02 hover:bg-white/10'
+              : 'bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30 shadow-[0_0_10px_rgba(69,137,255,0.2)]'
+          }`}
+        >
           Simulation
         </button>
         <button
