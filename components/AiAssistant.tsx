@@ -45,7 +45,8 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
       {/* Carbon Primary Button – floating action */}
       <button
         onClick={analyzeGCode}
-        className="bg-cds-interactive text-white p-3 shadow-lg hover:scale-105 transition-transform flex items-center justify-center group chamfer-sm"
+        disabled={loading}
+        className="bg-cds-interactive text-white p-3 shadow-lg hover:scale-105 transition-transform flex items-center justify-center group chamfer-sm disabled:opacity-60 disabled:pointer-events-none"
       >
         <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">psychology</span>
         <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap px-0 group-hover:px-2 text-body-sm font-semibold uppercase">
