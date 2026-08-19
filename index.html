@@ -10,46 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        /* ── Carbon Gray 90 Theme Tokens ── */
-                        "cds-bg":          "#161616",   /* $background        */
-                        "cds-layer-01":    "#262626",   /* $layer-01          */
-                        "cds-layer-02":    "#393939",   /* $layer-02          */
-                        "cds-layer-03":    "#525252",   /* $layer-03          */
-                        "cds-border":      "#393939",   /* $border-subtle-01  */
-                        "cds-border-str":  "#525252",   /* $border-strong-01  */
-                        "cds-interactive": "#4589ff",   /* $interactive Blue-60 */
-                        "cds-link":        "#78a9ff",   /* $link-primary Blue-40 */
-                        "cds-success":     "#42be65",   /* $support-success   */
-                        "cds-warning":     "#f1c21b",   /* $support-warning   */
-                        "cds-error":       "#ff8389",   /* $support-error     */
-                        "cds-text-01":     "#f4f4f4",   /* $text-primary      */
-                        "cds-text-02":     "#c6c6c6",   /* $text-secondary    */
-                        "cds-text-03":     "#8d8d8d",   /* $text-helper       */
-                        "cds-text-04":     "#6f6f6f",   /* $text-placeholder  */
-                    },
-                    fontFamily: {
-                        "display": ["IBM Plex Sans", "system-ui", "sans-serif"],
-                        "mono":    ["IBM Plex Mono", "SFMono-Regular", "monospace"],
-                    },
-                    /* Carbon Type Scale spacing helpers */
-                    fontSize: {
-                        "label":   ["12px", { lineHeight: "16px", letterSpacing: "0.32px" }],
-                        "body-sm": ["14px", { lineHeight: "20px", letterSpacing: "0.16px" }],
-                        "body":    ["16px", { lineHeight: "24px", letterSpacing: "0px"    }],
-                        "head-sm": ["14px", { lineHeight: "18px", letterSpacing: "0.16px", fontWeight: "600" }],
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Carbon tokens + base styles -->
+    <!-- Tailwind (built via @tailwindcss/vite) + Carbon tokens + base styles -->
     <link rel="stylesheet" href="/index.css">
 <script type="importmap">
 {

@@ -3,6 +3,47 @@
    https://carbondesignsystem.com/guidelines/color/overview/
    ============================================================ */
 
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Carbon Gray 90 Theme Tokens */
+  --color-cds-bg:          #161616;
+  --color-cds-layer-01:    #262626;
+  --color-cds-layer-02:    #393939;
+  --color-cds-layer-03:    #525252;
+  --color-cds-border:      #393939;
+  --color-cds-border-str:  #525252;
+  --color-cds-interactive: #4589ff;
+  --color-cds-link:        #78a9ff;
+  --color-cds-success:     #42be65;
+  --color-cds-warning:     #f1c21b;
+  --color-cds-error:       #ff8389;
+  --color-cds-text-01:     #f4f4f4;
+  --color-cds-text-02:     #c6c6c6;
+  --color-cds-text-03:     #8d8d8d;
+  --color-cds-text-04:     #6f6f6f;
+
+  --font-display: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', SFMono-Regular, monospace;
+
+  /* Carbon Type Scale */
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-label--letter-spacing: 0.32px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body-sm--letter-spacing: 0.16px;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-body--letter-spacing: 0px;
+  --text-head-sm: 14px;
+  --text-head-sm--line-height: 18px;
+  --text-head-sm--letter-spacing: 0.16px;
+  --text-head-sm--font-weight: 600;
+}
+
 /* ---- Token Definitions ---- */
 :root {
   /* Backgrounds / Layers */
