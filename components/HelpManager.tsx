@@ -127,7 +127,7 @@ const HelpManager: React.FC<HelpManagerProps> = ({ onClose }) => {
                     <span className="text-[10px] font-semibold text-cds-text-03 uppercase tracking-widest text-right">Type</span>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1 overflow-y-auto pb-24">
                     {filteredGCode.length > 0 ? (
                       filteredGCode.map((item, idx) => (
                         <div
@@ -171,7 +171,7 @@ const HelpManager: React.FC<HelpManagerProps> = ({ onClose }) => {
         </div>
 
         {/* F1 Quick Access Hint */}
-        <div className="absolute bottom-12 right-12 z-20 flex items-center gap-3">
+        <div className="absolute bottom-12 right-12 z-20 flex items-center gap-3 bg-cds-bg/90 backdrop-blur-sm border border-cds-border/40 px-4 py-2 chamfer-sm shadow-[0_0_20px_rgba(0,0,0,0.5)]">
           <div className="flex flex-col items-end">
             <span className="text-[9px] text-cds-text-04 uppercase tracking-widest mb-1">Quick Access</span>
             <div className="flex items-center gap-2">
