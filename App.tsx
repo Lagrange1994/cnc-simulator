@@ -114,8 +114,14 @@ const App: React.FC = () => {
   );
 
   // Movement Logic
+  const lastLineIndexRef = useRef(status.activeLineIndex);
+
   useEffect(() => {
     if (!status.isSimulating) return;
+
+    // Sync the ref to wherever the program actually is (handles Feed Hold ->
+    // Cycle Start resuming mid-program, not just a fresh start).
+    lastLineIndexRef.current = status.activeLineIndex;
 
     // Recompute the start time from current progress so Feed Hold -> Cycle
     // Start resumes mid-program instead of restarting the clock.
@@ -133,23 +139,29 @@ const App: React.FC = () => {
 
       const entry = findActiveEntry(gcodeTimeline, elapsed);
       const nextProgress = (elapsed / gcodeTimeline.totalDurationMs) * 100;
+      const lineChanged = entry.index !== lastLineIndexRef.current;
 
-      setStatus(prev => {
-        if (entry.index === prev.activeLineIndex) {
-          return { ...prev, progress: nextProgress };
-        }
-
+      // Side effects live here, outside the setStatus updater below — React
+      // StrictMode double-invokes updater functions in dev to catch exactly
+      // this class of bug (a non-pure updater), which was silently logging
+      // and moving the tool twice per line.
+      if (lineChanged) {
+        lastLineIndexRef.current = entry.index;
         addLog(`Executing line ${entry.line.lineNum}: ${entry.line.command} ${entry.line.params || ''}`);
         setCoords(entry.coords);
+      }
 
-        return {
-          ...prev,
-          progress: nextProgress,
-          activeLineIndex: entry.index,
-          feedRate: entry.feedRate,
-          spindleRpm: entry.spindleRpm !== undefined ? entry.spindleRpm : prev.spindleRpm,
-        };
-      });
+      setStatus(prev => (
+        lineChanged
+          ? {
+              ...prev,
+              progress: nextProgress,
+              activeLineIndex: entry.index,
+              feedRate: entry.feedRate,
+              spindleRpm: entry.spindleRpm !== undefined ? entry.spindleRpm : prev.spindleRpm,
+            }
+          : { ...prev, progress: nextProgress }
+      ));
     }, 100);
 
     return () => clearInterval(interval);

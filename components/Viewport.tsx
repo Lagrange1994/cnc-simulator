@@ -348,7 +348,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
         </div>
         <div className="relative h-2 bg-black/50 rounded-sm overflow-hidden border border-white/5">
           <div 
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#4589ff] to-[#4589ff]/60 shadow-[0_0_10px_rgba(23,145,207,0.5)] transition-all duration-300"
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#4589ff] to-[#4589ff]/60 shadow-[0_0_10px_rgba(69,137,255,0.5)] transition-all duration-300"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
