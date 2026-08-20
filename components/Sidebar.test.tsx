@@ -78,4 +78,10 @@ describe('Sidebar', () => {
     const { container } = renderSidebar({ spindleRpm: 0, isSimulating: false });
     expect(container.querySelector('[style*="width: 0%"]')).toBeInTheDocument();
   });
+
+  it('sizes FEED HOLD and RESET to the 44px touch-target minimum', () => {
+    renderSidebar();
+    expect(screen.getByText('FEED HOLD').closest('button')?.className).toContain('h-11');
+    expect(screen.getByText('RESET').closest('button')?.className).toContain('h-11');
+  });
 });

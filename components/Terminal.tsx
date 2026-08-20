@@ -21,15 +21,15 @@ const Terminal: React.FC<TerminalProps> = ({ logs, height = 160 }) => {
       className="bg-cds-bg flex flex-col font-mono text-[11px] shrink-0 overflow-hidden"
       style={{ height: `${height}px` }}
     >
-      {/* Carbon $layer-01 toolbar */}
-      <div className="h-6 bg-cds-layer-01 flex items-center px-3 border-b border-cds-border justify-between shrink-0">
+      {/* Carbon $layer-01 toolbar — h-11 so Clear/Export can hit the 44px touch target */}
+      <div className="h-11 bg-cds-layer-01 flex items-center px-3 border-b border-cds-border justify-between shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-cds-interactive"></span>
           <span className="text-cds-text-02 font-semibold uppercase tracking-tighter">Machine Console Output</span>
         </div>
-        <div className="flex gap-2">
-          <button className="text-cds-text-04 hover:text-cds-text-02 transition-colors">Clear</button>
-          <button className="text-cds-text-04 hover:text-cds-text-02 transition-colors">Export</button>
+        <div className="flex gap-1">
+          <button className="h-11 px-3 flex items-center text-cds-text-04 hover:text-cds-text-02 transition-colors">Clear</button>
+          <button className="h-11 px-3 flex items-center text-cds-text-04 hover:text-cds-text-02 transition-colors">Export</button>
         </div>
       </div>
 

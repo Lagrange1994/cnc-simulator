@@ -29,4 +29,12 @@ describe('Editor', () => {
     render(<Editor lines={lines} activeLineIndex={0} />);
     expect(screen.getByText('Total Lines: 3')).toBeInTheDocument();
   });
+
+  it('sizes the toolbar icon buttons to the 44px touch-target minimum', () => {
+    render(<Editor lines={lines} activeLineIndex={0} />);
+    const uploadButton = screen.getByText('upload_file').closest('button');
+    const saveButton = screen.getByText('save').closest('button');
+    expect(uploadButton?.className).toContain('size-11');
+    expect(saveButton?.className).toContain('size-11');
+  });
 });

@@ -102,14 +102,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Carbon Ghost Button */}
           <button
             onClick={onFeedHold}
-            className="h-10 bg-cds-layer-02 hover:bg-cds-layer-03 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 border border-cds-border-str/40 transition-colors chamfer-sm"
+            className="h-11 bg-cds-layer-02 hover:bg-cds-layer-03 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 border border-cds-border-str/40 transition-colors chamfer-sm"
           >
             <span className="material-symbols-outlined text-cds-warning text-[18px]">pause</span>
             FEED HOLD
           </button>
           <button
             onClick={onReset}
-            className="h-10 bg-cds-layer-02 hover:bg-red-900/30 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 border border-cds-border-str/40 hover:border-cds-error/50 transition-colors chamfer-sm"
+            className="h-11 bg-cds-layer-02 hover:bg-red-900/30 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 border border-cds-border-str/40 hover:border-cds-error/50 transition-colors chamfer-sm"
           >
             <span className="material-symbols-outlined text-cds-error text-[18px]">stop</span>
             RESET
