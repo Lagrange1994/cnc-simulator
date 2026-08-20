@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { GCodeLine } from '../types';
 
 interface AiAssistantProps {
@@ -18,6 +17,10 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
     setIsOpen(true);
     setError(null);
     try {
+      // Dynamic import: @google/genai is the majority of the production
+      // bundle's 555kB warning, and most sessions never click this button —
+      // defer loading it into its own chunk until the user actually does.
+      const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const gcodeStr = currentGCode.map(l => `${l.command} ${l.params || ''}`).join('\n');
 

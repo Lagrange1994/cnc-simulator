@@ -18,3 +18,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1YW9HU9X-r_z7029ev2b5wF
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Run Tests
+
+`npm test` runs the Vitest + React Testing Library suite. See [TESTING.md](TESTING.md)
+for conventions.
