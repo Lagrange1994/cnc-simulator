@@ -147,6 +147,51 @@ input[type="number"] {
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
 
+/* ---- Chamfer + Border ----
+   `clip-path` clips a plain CSS `border` to the box's four straight edges --
+   it cuts the corner away but doesn't paint a new stroke along the cut, so
+   any chamfered element that also had a `border` was showing no outline on
+   its two short diagonal edges, only the four straight ones.
+   Fix: paint the border color as the element's own background (its
+   chamfer-sm/md/lg/accent clip-path stays as-is), then repaint the real
+   fill color -- inset by the border width -- on a ::before that sits behind
+   the real content (z-index: -1, so it never covers text/icons) but in
+   front of that background. The result is a uniform ring on all six edges,
+   diagonals included.
+   Usage: add `relative chamfer-border` alongside the existing chamfer-sm/
+   md/lg/accent class; set the host's own `bg-*` to the intended BORDER
+   color (replacing `border border-*`); set the fill color via `before:bg-*`. */
+.chamfer-border {
+  position: relative;
+}
+.chamfer-border::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+}
+.chamfer-sm.chamfer-border::before {
+  clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
+}
+.chamfer-md.chamfer-border::before {
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.chamfer-lg.chamfer-border::before {
+  clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);
+}
+.chamfer-accent.chamfer-border::before {
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+
+/* Same inset hexagons as the ::before rules above, for wrapping real DOM
+   content (e.g. an <img>) that a ::before can't contain. */
+.chamfer-sm-inset {
+  clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
+}
+.chamfer-md-inset {
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+
 /* ---- Hex Background (updated to Carbon palette) ---- */
 .hex-bg {
   background-color: var(--cds-background);

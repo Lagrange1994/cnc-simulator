@@ -54,7 +54,7 @@ const EditSidebar: React.FC<EditSidebarProps> = ({ onClose }) => {
               { icon: 'find_replace', label: 'REPLACE' },
               { icon: 'shortcut', label: 'GOTO' },
             ].map(({ icon, label }) => (
-              <button key={label} className="flex-1 aspect-square max-h-12 bg-cds-layer-02 hover:bg-cds-layer-03 border border-cds-border flex flex-col items-center justify-center gap-1 transition-all group chamfer-sm">
+              <button key={label} className="flex-1 aspect-square max-h-12 relative chamfer-sm chamfer-border bg-cds-border before:bg-cds-layer-02 hover:before:bg-cds-layer-03 flex flex-col items-center justify-center gap-1 transition-all group">
                 <span className={`material-symbols-outlined text-sm text-cds-text-03 group-hover:text-cds-interactive`}>{icon}</span>
                 <span className="text-[8px] font-semibold text-cds-text-04">{label}</span>
               </button>
@@ -96,7 +96,7 @@ const EditSidebar: React.FC<EditSidebarProps> = ({ onClose }) => {
                     </div>
                   ))}
                 </div>
-                <button className="w-full h-8 mt-3 bg-cds-interactive/10 hover:bg-cds-interactive/20 text-cds-interactive text-[9px] font-semibold tracking-[0.2em] border border-cds-interactive/30 transition-all chamfer-sm">
+                <button className="w-full h-8 mt-3 relative chamfer-sm chamfer-border bg-cds-interactive/30 before:bg-cds-interactive/10 hover:before:bg-cds-interactive/20 text-cds-interactive text-[9px] font-semibold tracking-[0.2em] transition-all">
                   EXECUTE TOOL SWAP
                 </button>
               </div>

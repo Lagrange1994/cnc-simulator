@@ -84,4 +84,22 @@ describe('Sidebar', () => {
     expect(screen.getByText('FEED HOLD').closest('button')?.className).toContain('h-11');
     expect(screen.getByText('RESET').closest('button')?.className).toContain('h-11');
   });
+
+  it('derives the footer EST TIME from the real program duration, not a hardcoded placeholder', () => {
+    // Regression test: this used to be a hardcoded "1h 45m" string,
+    // unrelated to the actual (much shorter) programSummary duration.
+    renderSidebar();
+    expect(screen.getByText('EST TIME: 0h 1m')).toBeInTheDocument();
+  });
+
+  it('uses the chamfer-border ring technique so FEED HOLD/RESET show an outline on their diagonal edges', () => {
+    // Regression test: a plain CSS `border` on a `chamfer-*` (clip-path)
+    // element only ever draws on the box's four straight edges -- clip-path
+    // cuts the diagonal corner away without adding a stroke along the cut,
+    // so the outline was invisible on the two short diagonal edges. See the
+    // `.chamfer-border` rules in index.css for the two-layer fix.
+    renderSidebar();
+    expect(screen.getByText('FEED HOLD').closest('button')?.className).toContain('chamfer-border');
+    expect(screen.getByText('RESET').closest('button')?.className).toContain('chamfer-border');
+  });
 });

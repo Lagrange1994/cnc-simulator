@@ -36,4 +36,12 @@ describe('FileManager', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAccessibleName('FILE SYSTEM MANAGER');
   });
+
+  it('gives the active nav item the chamfer-border ring so its outline shows on the diagonal edges', () => {
+    // Regression test: see index.css's `.chamfer-border` comment -- a plain
+    // `border` on a chamfer-* (clip-path) element is invisible along the
+    // two short diagonal edges.
+    render(<FileManager onClose={vi.fn()} />);
+    expect(screen.getByText('RECENT WORK').closest('button')?.className).toContain('chamfer-border');
+  });
 });

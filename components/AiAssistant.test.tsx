@@ -54,4 +54,17 @@ describe('AiAssistant error handling', () => {
     await user.click(screen.getByText('Ask AI Assistant'));
     await waitFor(() => expect(screen.getByText('No analysis available.')).toBeInTheDocument());
   });
+
+  it('gives the Retry button the chamfer-border ring so its outline shows on the diagonal edges', async () => {
+    // Regression test: see index.css's `.chamfer-border` comment -- a plain
+    // `border` on a chamfer-* (clip-path) element is invisible along the
+    // two short diagonal edges.
+    generateContent.mockRejectedValueOnce(new Error('network down'));
+    const user = userEvent.setup();
+    render(<AiAssistant currentGCode={[]} />);
+
+    await user.click(screen.getByText('Ask AI Assistant'));
+    await waitFor(() => expect(screen.getByText('Retry')).toBeInTheDocument());
+    expect(screen.getByText('Retry').closest('button')?.className).toContain('chamfer-border');
+  });
 });

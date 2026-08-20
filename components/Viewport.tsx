@@ -1,16 +1,38 @@
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { Coordinates, GCodeLine } from '../types';
+import { Coordinates, GCodeLine, ViewSettings } from '../types';
 import { parseGCodeParams } from '../lib/gcode/parser';
+import { formatClock } from '../lib/format';
 
 interface ViewportProps {
   isSimulating: boolean;
   progress: number;
   coords: Coordinates;
   lines: GCodeLine[];
+  /** Total program cycle time, from the same timeline the simulator plays
+   * back (see summarizeProgram in lib/gcode/parser.ts) -- drives the real
+   * RUN TIME/EST readouts below instead of a hardcoded placeholder. */
+  totalDurationMs: number;
+  /** Scene display settings owned by the View Settings panel (ViewSidebar) --
+   * see types.ts. */
+  viewSettings: ViewSettings;
 }
 
-const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lines }) => {
+// Render-mode presets: how the tool + toolpath strokes look for each of the
+// four Render Style options in ViewSidebar. Kept as one table instead of a
+// scatter of inline ternaries so adding a mode later is a one-line change.
+const RENDER_MODE_STYLE: Record<ViewSettings['renderMode'], {
+  toolFill: string;
+  toolOpacity: number;
+  pathStrokeWidth: number;
+}> = {
+  SOLID:     { toolFill: 'url(#toolGradient)', toolOpacity: 1,    pathStrokeWidth: 2 },
+  WIREFRAME: { toolFill: 'none',               toolOpacity: 1,    pathStrokeWidth: 1 },
+  'X-RAY':   { toolFill: 'url(#toolGradient)', toolOpacity: 0.35, pathStrokeWidth: 2 },
+  PLASTIC:   { toolFill: '#e8935a',            toolOpacity: 1,    pathStrokeWidth: 2 },
+};
+
+const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lines, totalDurationMs, viewSettings }) => {
   const [zoomScale, setZoomScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState({ x: 20, z: -15 }); // Initial 3D tilt
@@ -40,6 +62,32 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
     });
     
     return pathSegments.join(' ');
+  }, [lines]);
+
+  // Rapid (G00) moves only, as independent M-broken segments -- kept
+  // separate from toolpathData above so the "Rapid Lines (G00)" toggle in
+  // ViewSidebar can show/hide just the rapid moves without touching the
+  // continuous cut-path animation.
+  const rapidPathData = useMemo(() => {
+    let currentX = 0;
+    let currentY = 0;
+    const segments: string[] = [];
+
+    lines.forEach(line => {
+      if (line.command === 'G00' || line.command === 'G01') {
+        const prevX = currentX;
+        const prevY = currentY;
+        const { x, y } = parseGCodeParams(line.params);
+        if (x !== undefined) currentX = x;
+        if (y !== undefined) currentY = y;
+
+        if (line.command === 'G00' && (currentX !== prevX || currentY !== prevY)) {
+          segments.push(`M ${500 + prevX * 2} ${300 - prevY * 2} L ${500 + currentX * 2} ${300 - currentY * 2}`);
+        }
+      }
+    });
+
+    return segments.join(' ');
   }, [lines]);
 
   const adjustZoom = useCallback((delta: number) => {
@@ -178,7 +226,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
       className="flex-1 flex flex-col bg-[#0d0d0d] relative overflow-hidden" 
       ref={containerRef}
       onMouseDown={handleMouseDown}
-      style={{ perspective: '1200px' }}
+      style={{ perspective: viewSettings.projection === 'PERSPECTIVE' ? '1200px' : 'none' }}
     >
       {/* 3D Header Overlay */}
       <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-black/80 to-transparent z-10 flex justify-between items-start p-4 pointer-events-none">
@@ -245,8 +293,10 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
             className="w-[1000px] h-[600px] pointer-events-none"
             viewBox="0 0 1000 600"
           >
-            {/* Grid Floor Visualization */}
-            <g opacity="0.1">
+            {/* Grid Floor Visualization -- opacity driven by ViewSidebar's
+                "Floor Grid Intensity" slider (0-100%, scaled to a 0-0.3 range
+                so the default 40% matches the original hardcoded 0.1 look) */}
+            <g opacity={(viewSettings.gridOpacity / 100) * 0.3}>
               {Array.from({ length: 21 }).map((_, i) => (
                 <React.Fragment key={i}>
                   <line x1={0} y1={i * 30} x2={1000} y2={i * 30} stroke="white" strokeWidth="0.5" />
@@ -254,6 +304,16 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
                 </React.Fragment>
               ))}
             </g>
+
+            {/* Machine Housing (outer machine-bed frame) — ViewSidebar's
+                "Machine Housing" scene-visibility toggle */}
+            {viewSettings.machineHousing && (
+              <rect
+                x={80} y={40} width={840} height={520}
+                fill="none" stroke="#525252" strokeOpacity="0.5"
+                strokeWidth="2" strokeDasharray="10,6"
+              />
+            )}
 
             {/* Work Envelope (machine table bounds) — visual anchor so the
                 canvas doesn't read as empty void on large screens */}
@@ -275,43 +335,78 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
                   />
                 );
               })}
+              {/* Fixtures & Clamps — small clamp markers pinning stock to the
+                  work-envelope corners; ViewSidebar's "Fixtures & Clamps"
+                  scene-visibility toggle */}
+              {viewSettings.fixturesClamps && [[150, 100], [850, 100], [850, 500], [150, 500]].map(([cx, cy], i) => (
+                <rect
+                  key={i}
+                  x={cx - 9} y={cy - 9} width={18} height={18}
+                  fill="#f1c21b" fillOpacity="0.85" stroke="#161616" strokeWidth="1"
+                />
+              ))}
               <text x={158} y={92} fill="#4589ff" fillOpacity="0.6" fontSize="10" fontFamily="monospace" letterSpacing="1">
                 WORK ENVELOPE
               </text>
             </g>
 
-            {/* Base Toolpath (Shadow) */}
-            <path 
-              d={toolpathData} 
-              fill="none" 
-              stroke="#222" 
-              strokeWidth="4" 
-              strokeLinecap="round"
-            />
-            {/* Planned Toolpath */}
-            <path 
-              d={toolpathData} 
-              fill="none" 
-              stroke="#4589ff33" 
-              strokeWidth="2" 
-              strokeDasharray="4,4"
-            />
-            {/* Animated Executed Toolpath (Progressive) */}
-            <path 
-              d={toolpathData} 
-              fill="none" 
-              stroke="#4589ff" 
-              strokeWidth="2" 
+            {/* Toolpath History — the static shadow/planned overlays behind
+                the live progressive path; ViewSidebar's "Toolpath History"
+                scene-visibility toggle */}
+            {viewSettings.toolpathHistory && (
+              <>
+                {/* Base Toolpath (Shadow) */}
+                <path
+                  d={toolpathData}
+                  fill="none"
+                  stroke="#222"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+                {/* Planned Toolpath */}
+                <path
+                  d={toolpathData}
+                  fill="none"
+                  stroke="#4589ff33"
+                  strokeWidth="2"
+                  strokeDasharray="4,4"
+                />
+              </>
+            )}
+            {/* Rapid (G00) moves — ViewSidebar's "Rapid Lines (G00)" toggle */}
+            {viewSettings.rapidLines && (
+              <path
+                d={rapidPathData}
+                fill="none"
+                stroke="#f1c21b"
+                strokeWidth="1.5"
+                strokeDasharray="3,3"
+                strokeLinecap="round"
+              />
+            )}
+            {/* Animated Executed Toolpath (Progressive) -- strokeDasharray/
+                strokeDashoffset is the reveal mechanism (one dash as long as
+                the whole path, offset back by (100-progress)%), so it stays
+                fixed across render modes; only stroke width varies. */}
+            <path
+              d={toolpathData}
+              fill="none"
+              stroke="#4589ff"
+              strokeWidth={RENDER_MODE_STYLE[viewSettings.renderMode].pathStrokeWidth}
               strokeDasharray="10000"
               strokeDashoffset={10000 - (10000 * (progress / 100))}
               className="transition-all duration-300"
             />
-            
+
             {/* Tool Representation */}
-            <g transform={`translate(${500 + coords.x * 2}, ${300 - coords.y * 2})`} className="transition-transform duration-100 ease-linear">
+            <g
+              transform={`translate(${500 + coords.x * 2}, ${300 - coords.y * 2})`}
+              className="transition-transform duration-100 ease-linear"
+              opacity={RENDER_MODE_STYLE[viewSettings.renderMode].toolOpacity}
+            >
               <ellipse cx="0" cy="5" rx="4" ry="2" fill="black" opacity="0.4" />
               <g transform="rotate(0)">
-                 <rect x="-4" y="-120" width="8" height="120" fill="url(#toolGradient)" />
+                 <rect x="-4" y="-120" width="8" height="120" fill={RENDER_MODE_STYLE[viewSettings.renderMode].toolFill} stroke={RENDER_MODE_STYLE[viewSettings.renderMode].toolFill === 'none' ? '#4589ff' : 'none'} />
                  <path d="M-4 0 L4 0 L6 -10 L-6 -10 Z" fill="#eee" />
               </g>
               <defs>
@@ -362,14 +457,14 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
       {/* Progress Scrubber */}
       <div className="h-16 bg-[#2B2B2B] border-t border-[#404040] flex flex-col justify-center px-6 z-20">
         <div className="flex justify-between items-center mb-2 text-xs text-gray-400 font-mono">
-          <span>RUN TIME: 00:00:{(progress * 0.45).toFixed(0).padStart(2, '0')}</span>
+          <span>RUN TIME: {formatClock((progress / 100) * totalDurationMs)}</span>
           <div className="flex items-center gap-2">
             <span className="text-[#4589ff] font-bold">COMPLETION {progress}%</span>
             <div className="w-24 h-1 bg-black/40 rounded-full overflow-hidden">
                <div className="h-full bg-[#4589ff]" style={{ width: `${progress}%` }}></div>
             </div>
           </div>
-          <span>EST: 00:00:45</span>
+          <span>EST: {formatClock(totalDurationMs)}</span>
         </div>
         <div className="relative h-2 bg-black/50 rounded-sm overflow-hidden border border-white/5">
           <div 

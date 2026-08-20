@@ -3,6 +3,7 @@ import React from 'react';
 import { Coordinates, MachineStatus, Tool } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
 import { MACHINE_SPEC, loadFillPercent } from '../lib/machine/spec';
+import { formatHoursMinutes } from '../lib/format';
 import CuttingResult from './CuttingResult';
 
 interface SidebarProps {
@@ -102,21 +103,21 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Carbon Ghost Button */}
           <button
             onClick={onFeedHold}
-            className="h-11 bg-cds-layer-02 hover:bg-cds-layer-03 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 border border-cds-border-str/40 transition-colors chamfer-sm"
+            className="h-11 relative chamfer-sm chamfer-border bg-cds-border-str/40 before:bg-cds-layer-02 hover:before:bg-cds-layer-03 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 transition-colors"
           >
             <span className="material-symbols-outlined text-cds-warning text-[18px]">pause</span>
             FEED HOLD
           </button>
           <button
             onClick={onReset}
-            className="h-11 bg-cds-layer-02 hover:bg-red-900/30 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 border border-cds-border-str/40 hover:border-cds-error/50 transition-colors chamfer-sm"
+            className="h-11 relative chamfer-sm chamfer-border bg-cds-border-str/40 hover:bg-cds-error/50 before:bg-cds-layer-02 hover:before:bg-red-900/30 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 transition-colors"
           >
             <span className="material-symbols-outlined text-cds-error text-[18px]">stop</span>
             RESET
           </button>
         </div>
         <div className="flex justify-between items-center mt-4 pt-4 border-t border-cds-border">
-          <span className="text-[10px] text-cds-text-04 font-mono">EST TIME: 1h 45m</span>
+          <span className="text-[10px] text-cds-text-04 font-mono">EST TIME: {formatHoursMinutes(programSummary.totalDurationMs)}</span>
           <span className="text-[10px] text-cds-text-04 font-mono whitespace-nowrap">
             COOLANT: <span className={`font-semibold ${status.coolant ? 'text-cds-interactive' : 'text-cds-text-04'}`}>
               {status.coolant ? 'ON' : 'OFF'}

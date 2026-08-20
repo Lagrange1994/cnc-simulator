@@ -240,10 +240,10 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                           <button
                             key={preset}
                             onClick={() => setQualityPreset(preset)}
-                            className={`h-24 relative flex flex-col items-center justify-center gap-2 border transition-all duration-300 chamfer-md group ${
+                            className={`h-24 relative flex flex-col items-center justify-center gap-2 transition-all duration-300 chamfer-md chamfer-border group ${
                               isSelected
-                                ? 'bg-cds-interactive/10 border-cds-interactive shadow-[0_0_20px_rgba(69,137,255,0.2)]'
-                                : 'bg-cds-bg border-cds-border/30 hover:border-cds-border-str hover:bg-white/5'
+                                ? 'bg-cds-interactive before:bg-cds-interactive/10 shadow-[0_0_20px_rgba(69,137,255,0.2)]'
+                                : 'bg-cds-border/30 before:bg-cds-bg hover:bg-cds-border-str hover:before:bg-white/5'
                             }`}
                           >
                             <span className={`material-symbols-outlined text-lg ${isSelected ? 'text-cds-interactive' : 'text-cds-text-04'}`}>
@@ -742,7 +742,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                         </div>
                       ))}
                       <div className="flex gap-3 mt-4">
-                        <button className="flex-1 py-3 border border-cds-border/30 hover:border-cds-interactive hover:bg-cds-interactive/5 text-cds-text-03 hover:text-cds-interactive text-[10px] font-semibold tracking-[0.2em] uppercase chamfer-sm transition-all flex items-center justify-center gap-2 group">
+                        <button className="flex-1 py-3 relative chamfer-sm chamfer-border bg-cds-border/30 hover:bg-cds-interactive before:bg-cds-layer-01 hover:before:bg-cds-interactive/5 text-cds-text-03 hover:text-cds-interactive text-[10px] font-semibold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 group">
                           <span className="material-symbols-outlined text-sm group-hover:scale-110 transition-transform">add_circle</span>
                           INVITE MEMBER
                         </button>

@@ -11,8 +11,8 @@ import EditSidebar from './components/EditSidebar';
 import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
-import { Coordinates, MachineStatus, LogMessage } from './types';
-import { INITIAL_GCODE, TOOLS } from './constants';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings } from './types';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 
 const App: React.FC = () => {
@@ -34,6 +34,10 @@ const App: React.FC = () => {
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [viewSettings, setViewSettings] = useState<ViewSettings>(DEFAULT_VIEW_SETTINGS);
+  const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
+    setViewSettings(prev => ({ ...prev, ...patch }));
+  }, []);
   // FileManager/HelpManager/SettingsManager each mount their own <h1> as a
   // local document root; hide the app shell's <h1> (in Header) and the rest
   // of the shell behind them so screen readers see one active H1 at a time.
@@ -288,6 +292,8 @@ const App: React.FC = () => {
             progress={status.progress}
             coords={coords}
             lines={INITIAL_GCODE}
+            totalDurationMs={programSummary.totalDurationMs}
+            viewSettings={viewSettings}
           />
           <AiAssistant currentGCode={INITIAL_GCODE} />
         </div>
@@ -322,7 +328,11 @@ const App: React.FC = () => {
 
         {/* View Menu Sidebar Overlay */}
         {isViewMenuOpen && (
-          <ViewSidebar onClose={() => setIsViewMenuOpen(false)} />
+          <ViewSidebar
+            onClose={() => setIsViewMenuOpen(false)}
+            settings={viewSettings}
+            onSettingsChange={updateViewSettings}
+          />
         )}
       </main>
 

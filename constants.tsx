@@ -1,5 +1,5 @@
 
-import { GCodeLine, Tool } from './types';
+import { GCodeLine, Tool, ViewSettings } from './types';
 
 export const INITIAL_GCODE: GCodeLine[] = [
   { id: '1', lineNum: '001', command: 'G21', comment: 'Metric Units', type: 'setup' },
@@ -21,3 +21,13 @@ export const TOOLS: Tool[] = [
   { id: 'T1', name: 'Flat End Mill', diameter: '6.0mm', length: '50mm', type: 'End Mill' },
   { id: 'T2', name: 'Ball Nose 3mm', diameter: '3.0mm', length: '45mm', type: 'Ball Nose' },
 ];
+
+export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
+  machineHousing: true,
+  fixturesClamps: true,
+  rapidLines: false,
+  toolpathHistory: true,
+  renderMode: 'SOLID',
+  projection: 'PERSPECTIVE',
+  gridOpacity: 40,
+};

@@ -81,7 +81,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentGCode }) => {
                 </div>
                 <button
                   onClick={analyzeGCode}
-                  className="self-start px-3 py-1.5 border border-cds-interactive/40 text-cds-interactive hover:bg-cds-interactive/10 transition-colors text-[11px] font-semibold uppercase tracking-widest chamfer-sm"
+                  className="self-start px-3 py-1.5 relative chamfer-sm chamfer-border bg-cds-interactive/40 before:bg-cds-layer-01 hover:before:bg-cds-interactive/10 text-cds-interactive transition-colors text-[11px] font-semibold uppercase tracking-widest"
                 >
                   Retry
                 </button>

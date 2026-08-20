@@ -1,19 +1,9 @@
 import React from 'react';
 import { ProgramSummary } from '../lib/gcode/parser';
+import { formatDuration, formatLength } from '../lib/format';
 
 interface CuttingResultProps {
   summary: ProgramSummary;
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.round(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function formatLength(mm: number): string {
-  return mm >= 1000 ? `${(mm / 1000).toFixed(2)} m` : `${mm.toFixed(0)} mm`;
 }
 
 const Stat: React.FC<{ label: string; value: string; unit?: string }> = ({ label, value, unit }) => (
