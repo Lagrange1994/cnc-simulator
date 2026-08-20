@@ -38,7 +38,7 @@ const HelpManager: React.FC<HelpManagerProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-cds-bg/90 backdrop-blur-2xl z-[150] flex items-center justify-center p-8 animate-in fade-in duration-300">
-      <div className="w-full h-full max-w-[1400px] bg-cds-layer-01 border border-cds-border/30 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden chamfer-lg relative">
+      <div role="dialog" aria-modal="true" aria-labelledby="help-manager-title" className="w-full h-full max-w-[1400px] bg-cds-layer-01 border border-cds-border/30 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden chamfer-lg relative">
 
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none hex-bg"></div>
 
@@ -47,7 +47,7 @@ const HelpManager: React.FC<HelpManagerProps> = ({ onClose }) => {
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-cds-interactive text-2xl">help_center</span>
             <div>
-              <h1 className="text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM COMMAND CENTER</h1>
+              <h1 id="help-manager-title" className="text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM COMMAND CENTER</h1>
               <p className="text-[9px] text-cds-text-04 font-mono tracking-widest uppercase">Knowledge Base // Central Database Access</p>
             </div>
           </div>

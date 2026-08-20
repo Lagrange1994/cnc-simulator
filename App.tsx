@@ -34,6 +34,10 @@ const App: React.FC = () => {
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // FileManager/HelpManager/SettingsManager each mount their own <h1> as a
+  // local document root; hide the app shell's <h1> (in Header) and the rest
+  // of the shell behind them so screen readers see one active H1 at a time.
+  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen;
   const [leftWidth, setLeftWidth] = useState(420);
   const [rightWidth, setRightWidth] = useState(340);
   const [terminalHeight, setTerminalHeight] = useState(200);
@@ -237,6 +241,11 @@ const App: React.FC = () => {
 
   return (
     <div className={`h-screen flex flex-col bg-cds-bg text-cds-text-01 antialiased overflow-hidden select-none ${(isResizingLeft || isResizingRight) ? 'cursor-col-resize' : ''} ${isResizingTerminal ? 'cursor-row-resize' : ''}`}>
+      {/* When a full-screen modal (File/Help/Settings) is open, hide the app
+          shell from the accessibility tree — it nests its own <h1>, which
+          would otherwise sit active behind the modal's <h1>. `className="contents"`
+          keeps this wrapper out of the flex layout. */}
+      <div className="contents" aria-hidden={isFullScreenModalOpen} inert={isFullScreenModalOpen}>
       <Header
         onOpenFileMenu={() => setIsFileMenuOpen(true)}
         onOpenEditMenu={toggleEditMenu}
@@ -325,6 +334,7 @@ const App: React.FC = () => {
         </div>
         <div>BUFFER: 4096KB / LOAD: {(Math.random() * 5 + 2).toFixed(1)}%</div>
       </footer>
+      </div>
 
       {/* Overlays */}
       {isFileMenuOpen && <FileManager onClose={() => setIsFileMenuOpen(false)} />}

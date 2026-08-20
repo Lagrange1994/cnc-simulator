@@ -231,7 +231,7 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
 
       {/* Main Simulation Content */}
       <div className="flex-1 w-full h-full relative flex items-center justify-center bg-[#151515] overflow-hidden">
-        <div className="absolute inset-0 opacity-20 hex-bg"></div>
+        <div className="absolute inset-0 opacity-30 hex-bg"></div>
         
         {/* 3D Wrapper */}
         <div 
@@ -241,8 +241,8 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
             transformStyle: 'preserve-3d'
           }}
         >
-          <svg 
-            className="w-[1000px] h-[600px] pointer-events-none" 
+          <svg
+            className="w-[1000px] h-[600px] pointer-events-none"
             viewBox="0 0 1000 600"
           >
             {/* Grid Floor Visualization */}
@@ -253,6 +253,31 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
                   <line x1={i * 50} y1={0} x2={i * 50} y2={600} stroke="white" strokeWidth="0.5" />
                 </React.Fragment>
               ))}
+            </g>
+
+            {/* Work Envelope (machine table bounds) — visual anchor so the
+                canvas doesn't read as empty void on large screens */}
+            <g>
+              <rect
+                x={150} y={100} width={700} height={400}
+                fill="#262626" fillOpacity="0.25"
+                stroke="#4589ff" strokeOpacity="0.35"
+                strokeWidth="1.5" strokeDasharray="6,4"
+              />
+              {[[150, 100], [850, 100], [850, 500], [150, 500]].map(([cx, cy], i) => {
+                const dx = cx === 150 ? 1 : -1;
+                const dy = cy === 100 ? 1 : -1;
+                return (
+                  <path
+                    key={i}
+                    d={`M ${cx} ${cy + dy * 24} L ${cx} ${cy} L ${cx + dx * 24} ${cy}`}
+                    fill="none" stroke="#4589ff" strokeOpacity="0.7" strokeWidth="2"
+                  />
+                );
+              })}
+              <text x={158} y={92} fill="#4589ff" fillOpacity="0.6" fontSize="10" fontFamily="monospace" letterSpacing="1">
+                WORK ENVELOPE
+              </text>
             </g>
 
             {/* Base Toolpath (Shadow) */}

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Coordinates, MachineStatus, Tool } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
+import { MACHINE_SPEC, loadFillPercent } from '../lib/machine/spec';
 import CuttingResult from './CuttingResult';
 
 interface SidebarProps {
@@ -43,8 +44,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             <span className="material-symbols-outlined text-sm">speed</span> Status
           </h2>
           <div className="grid grid-cols-2 gap-4">
-            <StatusCard label="Spindle (RPM)" value={status.spindleRpm.toLocaleString()} fillPercent={status.isSimulating ? 80 : 0} color="white" />
-            <StatusCard label="Feed (mm/m)"   value={status.feedRate}                   fillPercent={status.isSimulating ? 40 : 0} color="interactive" />
+            <StatusCard label="Spindle (RPM)" value={status.spindleRpm.toLocaleString()} fillPercent={loadFillPercent(status.spindleRpm, MACHINE_SPEC.maxSpindleRpm)} color="white" />
+            <StatusCard label="Feed (mm/m)"   value={status.feedRate}                   fillPercent={loadFillPercent(status.feedRate, MACHINE_SPEC.maxFeedRateMmPerMin)} color="interactive" />
           </div>
         </div>
 

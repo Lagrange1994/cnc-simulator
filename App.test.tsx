@@ -147,3 +147,27 @@ describe('App simulation loop', () => {
     expect(decimals).toBeLessThanOrEqual(1);
   });
 });
+
+describe('App shell accessibility while a full-screen modal is open', () => {
+  // Regression test: FileManager/HelpManager/SettingsManager each mount their
+  // own <h1> as a local document root, but the app shell's <h1> (in Header)
+  // used to stay mounted behind them, unhidden -- two active H1s at once.
+  it('hides the app shell (and its <h1>) behind the FileManager modal', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByText('File'));
+
+    expect(screen.getByText('FILE SYSTEM MANAGER')).toBeInTheDocument();
+    const shellHeading = screen.getByText('Super High Tech');
+    expect(shellHeading.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(shellHeading.closest('[inert]')).not.toBeNull();
+  });
+
+  it('does not hide the app shell when no modal is open', () => {
+    render(<App />);
+
+    const shellHeading = screen.getByText('Super High Tech');
+    expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
+    expect(shellHeading.closest('[inert]')).toBeNull();
+  });
+});

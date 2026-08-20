@@ -27,7 +27,7 @@ function renderSidebar(statusOverride: Partial<MachineStatus> = {}) {
   const onCycleStart = vi.fn();
   const onFeedHold = vi.fn();
   const onReset = vi.fn();
-  render(
+  const { container } = render(
     <Sidebar
       coords={coords}
       status={{ ...status, ...statusOverride }}
@@ -39,7 +39,7 @@ function renderSidebar(statusOverride: Partial<MachineStatus> = {}) {
       onReset={onReset}
     />
   );
-  return { onCycleStart, onFeedHold, onReset };
+  return { onCycleStart, onFeedHold, onReset, container };
 }
 
 describe('Sidebar', () => {
@@ -65,5 +65,17 @@ describe('Sidebar', () => {
   it('does not disable the CYCLE START button when idle', () => {
     renderSidebar({ isSimulating: false });
     expect(screen.getByText('CYCLE START').closest('button')).not.toBeDisabled();
+  });
+
+  it('sizes the spindle and feed load gauges from actual RPM/feed values, not a hardcoded fill', () => {
+    // spindleRpm 6000 / max 12000 = 50%; feedRate 1500 / max 3000 = 50%
+    const { container } = renderSidebar({ spindleRpm: 6000, feedRate: 1500, isSimulating: true });
+    const gaugeFills = container.querySelectorAll<HTMLDivElement>('[style*="width: 50%"]');
+    expect(gaugeFills.length).toBe(2);
+  });
+
+  it('shows a zero-width spindle gauge when idle even though isSimulating gating no longer forces it', () => {
+    const { container } = renderSidebar({ spindleRpm: 0, isSimulating: false });
+    expect(container.querySelector('[style*="width: 0%"]')).toBeInTheDocument();
   });
 });

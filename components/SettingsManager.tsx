@@ -114,14 +114,14 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-cds-bg/95 backdrop-blur-xl z-[150] flex items-center justify-center p-8 animate-in fade-in duration-300">
-      <div className="w-full h-full max-w-[1400px] bg-cds-layer-01 border border-cds-border/30 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden chamfer-lg relative">
+      <div role="dialog" aria-modal="true" aria-labelledby="settings-manager-title" className="w-full h-full max-w-[1400px] bg-cds-layer-01 border border-cds-border/30 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden chamfer-lg relative">
 
         {/* Header */}
         <div className="h-16 px-8 bg-black/40 border-b border-cds-border/30 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-cds-interactive text-2xl">admin_panel_settings</span>
             <div>
-              <h1 className="text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM CONFIGURATION</h1>
+              <h1 id="settings-manager-title" className="text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM CONFIGURATION</h1>
               <p className="text-[9px] text-cds-text-04 font-mono tracking-widest uppercase">BIOS Setup Utility // Kernel v4.2</p>
             </div>
           </div>
