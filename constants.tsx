@@ -1,5 +1,6 @@
 
-import { GCodeLine, Tool, ViewSettings } from './types';
+import { GCodeLine, Tool, ViewSettings, CuttingParams } from './types';
+import { MATERIALS, midpoint } from './lib/machine/materials';
 
 export const INITIAL_GCODE: GCodeLine[] = [
   { id: '1', lineNum: '001', command: 'G21', comment: 'Metric Units', type: 'setup' },
@@ -30,4 +31,10 @@ export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
   renderMode: 'SOLID',
   projection: 'PERSPECTIVE',
   gridOpacity: 40,
+};
+
+export const DEFAULT_CUTTING_PARAMS: CuttingParams = {
+  materialId: MATERIALS[0].id,
+  vcMPerMin: midpoint(MATERIALS[0].vcRangeMPerMin),
+  feedMmPerMin: midpoint(MATERIALS[0].feedRangeMmPerMin),
 };

@@ -1,10 +1,12 @@
 
 import React from 'react';
-import { Coordinates, MachineStatus, Tool } from '../types';
+import { Coordinates, MachineStatus, Tool, CuttingParams } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
 import { MACHINE_SPEC, loadFillPercent } from '../lib/machine/spec';
 import { formatHoursMinutes } from '../lib/format';
+import { MATERIALS, getMaterial, midpoint, parseToolDiameterMm, estimateRpm, estimatePowerKw } from '../lib/machine/materials';
 import CuttingResult from './CuttingResult';
+import InfoTooltip from './InfoTooltip';
 
 interface SidebarProps {
   coords: Coordinates;
@@ -15,12 +17,43 @@ interface SidebarProps {
   onCycleStart: () => void;
   onFeedHold: () => void;
   onReset: () => void;
+  cuttingParams: CuttingParams;
+  onCuttingParamsChange: (patch: Partial<CuttingParams>) => void;
+  /** True during the ~1.5s fake-computing window between clicking CYCLE
+   * START and the real simulation starting (see App.tsx's isCycleLoadingOpen). */
+  isPreparingCycle: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   coords, status, activeTool, nextTool, programSummary,
-  onCycleStart, onFeedHold, onReset
+  onCycleStart, onFeedHold, onReset,
+  cuttingParams, onCuttingParamsChange, isPreparingCycle
 }) => {
+  const isCuttingLocked = status.isSimulating || isPreparingCycle;
+  const selectedMaterial = getMaterial(cuttingParams.materialId);
+  const toolDiameterMm = parseToolDiameterMm(activeTool.diameter);
+  const estimatedRpm = estimateRpm(cuttingParams.vcMPerMin, toolDiameterMm);
+  const estimatedPowerKw = estimatePowerKw(selectedMaterial.cuttingForceN, cuttingParams.vcMPerMin);
+
+  const handleMaterialChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const material = getMaterial(e.target.value);
+    onCuttingParamsChange({
+      materialId: material.id,
+      vcMPerMin: midpoint(material.vcRangeMPerMin),
+      feedMmPerMin: midpoint(material.feedRangeMmPerMin),
+    });
+  };
+
+  const clampVc = (value: number) => {
+    const [min, max] = selectedMaterial.vcRangeMPerMin;
+    return Math.min(max, Math.max(min, value));
+  };
+
+  const handleVcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (Number.isNaN(value)) return;
+    onCuttingParamsChange({ vcMPerMin: clampVc(value) });
+  };
   return (
     <aside className="flex-1 flex flex-col bg-cds-bg border-cds-border shadow-xl z-20 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
@@ -68,6 +101,78 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
+          {/* Cutting Parameters — illustrative pre-flight values (material
+              picked -> Vc/RPM/Power auto-fill via lib/machine/materials.ts),
+              NOT a measured/G-code-derived stat like CuttingResult above.
+              The CONCEPT badge marks that distinction explicitly. */}
+          <div className="mt-4 bg-cds-layer-01 border border-cds-border p-4 shrink-0">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[10px] uppercase text-cds-text-04 font-semibold px-1">Cutting Parameters</div>
+              <span className="text-[8px] font-mono uppercase tracking-widest text-cds-warning bg-cds-warning/10 border border-cds-warning/30 px-1.5 py-0.5">
+                Concept
+              </span>
+            </div>
+
+            <select
+              value={cuttingParams.materialId}
+              onChange={handleMaterialChange}
+              disabled={isCuttingLocked}
+              aria-label="Workpiece material"
+              className="w-full h-9 bg-black/40 border border-cds-border/30 px-2 text-label font-mono text-cds-text-02 outline-none focus:border-cds-interactive disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+            >
+              {MATERIALS.map(m => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-1">
+                <label htmlFor="vc-input" className="text-[9px] text-cds-text-04 uppercase font-semibold">Cutting Speed (Vc)</label>
+                <input
+                  id="vc-input"
+                  type="number"
+                  value={Math.round(cuttingParams.vcMPerMin)}
+                  min={selectedMaterial.vcRangeMPerMin[0]}
+                  max={selectedMaterial.vcRangeMPerMin[1]}
+                  disabled={isCuttingLocked}
+                  onChange={handleVcChange}
+                  className="w-16 h-6 bg-black/40 border border-cds-border/30 text-right text-[10px] font-mono text-cds-interactive px-1 outline-none focus:border-cds-interactive disabled:opacity-50"
+                />
+              </div>
+              <input
+                type="range"
+                min={selectedMaterial.vcRangeMPerMin[0]}
+                max={selectedMaterial.vcRangeMPerMin[1]}
+                value={cuttingParams.vcMPerMin}
+                disabled={isCuttingLocked}
+                onChange={handleVcChange}
+                aria-label="Cutting speed slider"
+                className="w-full accent-[#4589ff] disabled:opacity-50"
+              />
+              <div className="text-[8px] text-cds-text-04 font-mono mt-0.5">
+                m/min &middot; recommended {selectedMaterial.vcRangeMPerMin[0]}&ndash;{selectedMaterial.vcRangeMPerMin[1]}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-black/40 p-2 border border-cds-border/20">
+                <div className="text-[8px] text-cds-text-04 uppercase">Spindle Speed</div>
+                <div className="text-body-sm font-mono text-cds-text-01">
+                  {estimatedRpm.toLocaleString()} <span className="text-[9px] text-cds-text-04">rpm</span>
+                </div>
+              </div>
+              <div className="bg-black/40 p-2 border border-cds-border/20">
+                <div className="flex items-center gap-1 text-[8px] text-cds-text-04 uppercase">
+                  Cutting Power
+                  <InfoTooltip>P = Fc &times; Vc / 60000 &mdash; cutting force (Fc, N) times cutting speed (Vc, m/min), scaled to kW.</InfoTooltip>
+                </div>
+                <div className="text-body-sm font-mono text-cds-text-01">
+                  {estimatedPowerKw.toFixed(2)} <span className="text-[9px] text-cds-text-04">kW</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Next Tool Preview */}
           <div className="mt-4 opacity-60 shrink-0">
             <div className="text-[10px] uppercase text-cds-text-04 font-semibold mb-2 px-1">Next Up</div>
@@ -90,9 +195,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Carbon Primary Button – $interactive */}
           <button
             onClick={onCycleStart}
-            disabled={status.isSimulating}
+            disabled={status.isSimulating || isPreparingCycle}
             className={`col-span-2 h-16 font-bold text-xl flex items-center justify-center gap-3 transition-all chamfer-lg active:scale-[0.98] ${
-              status.isSimulating
+              status.isSimulating || isPreparingCycle
                 ? 'bg-cds-layer-02 cursor-not-allowed opacity-50 text-cds-text-04'
                 : 'bg-cds-interactive hover:bg-cds-link text-white shadow-[0_0_20px_rgba(69,137,255,0.4)]'
             }`}

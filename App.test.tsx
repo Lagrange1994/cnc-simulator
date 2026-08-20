@@ -8,6 +8,17 @@ function completionPercent(): number {
   return match ? parseFloat(match[1]) : NaN;
 }
 
+// Clicking CYCLE START now opens a ~1.5s SimulationLoadingModal before the
+// real simulation starts (see App.tsx's isCycleLoadingOpen / handleCycleStartClick).
+// Every test that clicks CYCLE START and then asserts on simulation state
+// must advance past this window first, or the real handleCycleStart never runs.
+function clickCycleStartAndWaitForLoading() {
+  fireEvent.click(screen.getByText('CYCLE START'));
+  act(() => {
+    vi.advanceTimersByTime(1500);
+  });
+}
+
 // Scopes to the live SPINDLE (RPM) status card, not the Cutting Result
 // panel's "Peak Spindle" stat -- both can show the same number.
 function liveSpindleCard() {
@@ -31,7 +42,7 @@ describe('App simulation loop', () => {
   it('advances progress as the interval ticks after CYCLE START', () => {
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.advanceTimersByTime(500);
     });
@@ -42,7 +53,7 @@ describe('App simulation loop', () => {
   it('resumes from the paused progress instead of restarting after FEED HOLD -> CYCLE START', () => {
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.advanceTimersByTime(1000);
     });
@@ -50,7 +61,7 @@ describe('App simulation loop', () => {
     const pausedPercent = completionPercent();
     expect(pausedPercent).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.advanceTimersByTime(50);
     });
@@ -61,7 +72,7 @@ describe('App simulation loop', () => {
   it('marks the run complete once the full program duration elapses', () => {
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.advanceTimersByTime(20000);
     });
@@ -76,7 +87,7 @@ describe('App simulation loop', () => {
     // double-invokes in dev, producing duplicate log lines.
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.advanceTimersByTime(1300); // past line 004 (M03 S12000)
     });
@@ -88,7 +99,7 @@ describe('App simulation loop', () => {
   it('preserves the last spindle RPM on lines with no S-word instead of resetting it', () => {
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     // Line 004 (M03 S12000) sets spindle to 12,000; line 005-006 have no
     // S-word and should not reset it back to 0.
     act(() => {
@@ -106,7 +117,7 @@ describe('App simulation loop', () => {
     // (M03 S12000) without ever landing on it directly.
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.setSystemTime(Date.now() + 1300);
       vi.advanceTimersByTime(100); // exactly one throttled tick
@@ -119,7 +130,7 @@ describe('App simulation loop', () => {
   it('reaches the true final coordinates and logs the last line when a tick jumps straight past completion', () => {
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.setSystemTime(Date.now() + 60000); // one huge throttled jump
       vi.advanceTimersByTime(100);
@@ -135,7 +146,7 @@ describe('App simulation loop', () => {
   it('renders progress as a clean rounded percentage, not a long float', () => {
     render(<App />);
 
-    fireEvent.click(screen.getByText('CYCLE START'));
+    clickCycleStartAndWaitForLoading();
     act(() => {
       vi.advanceTimersByTime(437); // an elapsed time unlikely to divide evenly
     });
@@ -145,6 +156,57 @@ describe('App simulation loop', () => {
     expect(match).not.toBeNull();
     const decimals = (match![1].split('.')[1] || '').length;
     expect(decimals).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('CYCLE START fake-computing loading sequence', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows the loading modal immediately on click, before the real simulation starts', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByText('CYCLE START'));
+
+    expect(screen.getByText('INITIALIZING TOOLPATH SOLVER...')).toBeInTheDocument();
+    expect(completionPercent()).toBe(0);
+  });
+
+  it('ignores a second click while the loading modal is still open', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByText('CYCLE START'));
+    expect(screen.getByText('CYCLE START').closest('button')).toBeDisabled();
+
+    fireEvent.click(screen.getByText('CYCLE START'));
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    // Only one real cycle started: progress is mid-run, not restarted/frozen.
+    expect(completionPercent()).toBe(0);
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(completionPercent()).toBeGreaterThan(0);
+  });
+
+  it('closes the loading modal and seeds the real Spindle RPM from the selected material -- not the old hardcoded 12,000', () => {
+    // Default material is Aluminum (see DEFAULT_CUTTING_PARAMS): Vc =
+    // midpoint(200,400) = 300 m/min, tool diameter 6mm (TOOLS[0]).
+    // RPM = 300*1000/(pi*6) ~= 15,915 -- nothing in this test relies on the
+    // old hardcoded 12,000 value the feature replaced.
+    render(<App />);
+
+    clickCycleStartAndWaitForLoading();
+
+    expect(screen.queryByText('INITIALIZING TOOLPATH SOLVER...')).not.toBeInTheDocument();
+    expect(within(liveSpindleCard()).getByText('15,915')).toBeInTheDocument();
   });
 });
 
@@ -169,5 +231,22 @@ describe('App shell accessibility while a full-screen modal is open', () => {
     const shellHeading = screen.getByText('Super High Tech');
     expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
     expect(shellHeading.closest('[inert]')).toBeNull();
+  });
+
+  it('also hides the app shell behind the CYCLE START loading modal', () => {
+    // Outside-voice finding: the loading modal is self-contained (owns its
+    // own message timer) but must still join isFullScreenModalOpen, or it
+    // reintroduces the two-active-<h1> class of bug fixed for the other 3
+    // modals above.
+    vi.useFakeTimers();
+    render(<App />);
+
+    fireEvent.click(screen.getByText('CYCLE START'));
+
+    const shellHeading = screen.getByText('Super High Tech');
+    expect(shellHeading.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(shellHeading.closest('[inert]')).not.toBeNull();
+
+    vi.useRealTimers();
   });
 });

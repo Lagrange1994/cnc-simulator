@@ -11,9 +11,11 @@ import EditSidebar from './components/EditSidebar';
 import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings } from './types';
-import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS } from './constants';
+import SimulationLoadingModal from './components/SimulationLoadingModal';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams } from './types';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
+import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
 
 const App: React.FC = () => {
   const [activeLineIndex, setActiveLineIndex] = useState(0);
@@ -38,10 +40,21 @@ const App: React.FC = () => {
   const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
     setViewSettings(prev => ({ ...prev, ...patch }));
   }, []);
+  const [cuttingParams, setCuttingParams] = useState<CuttingParams>(DEFAULT_CUTTING_PARAMS);
+  const updateCuttingParams = useCallback((patch: Partial<CuttingParams>) => {
+    setCuttingParams(prev => ({ ...prev, ...patch }));
+  }, []);
+  // The ~1.5s "computing" theater between CYCLE START and the real
+  // simulation starting (SimulationLoadingModal). Its message-sequencing
+  // timer is self-contained in the modal; only this open/closed boolean is
+  // lifted here, so it can join isFullScreenModalOpen below.
+  const [isCycleLoadingOpen, setIsCycleLoadingOpen] = useState(false);
   // FileManager/HelpManager/SettingsManager each mount their own <h1> as a
   // local document root; hide the app shell's <h1> (in Header) and the rest
   // of the shell behind them so screen readers see one active H1 at a time.
-  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen;
+  // The cycle-loading modal joins this set too: it's a transient overlay,
+  // not a document root, but the background shell should stay just as inert.
+  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isCycleLoadingOpen;
   const [leftWidth, setLeftWidth] = useState(420);
   const [rightWidth, setRightWidth] = useState(340);
   const [terminalHeight, setTerminalHeight] = useState(200);
@@ -209,10 +222,28 @@ const App: React.FC = () => {
     if (status.progress >= 100) {
       handleReset();
     }
-    setStatus(prev => ({ ...prev, isSimulating: true, spindleRpm: 12000, coolant: true }));
+    // Seed the initial spindle RPM/feed from the selected Cutting Parameters
+    // (material -> Vc -> RPM via the real formula, see lib/machine/materials.ts)
+    // instead of a hardcoded value, so the Status card matches whatever the
+    // Cutting Parameters panel just showed. The G-code's own S/F-words still
+    // take over once the timeline reaches a line that sets them.
+    const toolDiameterMm = parseToolDiameterMm(TOOLS[0].diameter);
+    const rpm = estimateRpm(cuttingParams.vcMPerMin, toolDiameterMm);
+    setStatus(prev => ({ ...prev, isSimulating: true, spindleRpm: rpm, feedRate: cuttingParams.feedMmPerMin, coolant: true }));
     addLog("Cycle Start command received. Spindle spinning up...", "info");
     addLog("Homing sequence bypassed. Initializing path execution.", "warn");
-  }, [status.progress, addLog]);
+  }, [status.progress, addLog, cuttingParams]);
+
+  // CYCLE START goes through the fake-computing modal first; the modal's
+  // onComplete is what actually calls handleCycleStart.
+  const handleCycleStartClick = useCallback(() => {
+    setIsCycleLoadingOpen(true);
+  }, []);
+
+  const handleCycleLoadingComplete = useCallback(() => {
+    setIsCycleLoadingOpen(false);
+    handleCycleStart();
+  }, [handleCycleStart]);
 
   const handleFeedHold = useCallback(() => {
     setStatus(prev => ({ ...prev, isSimulating: false }));
@@ -315,9 +346,12 @@ const App: React.FC = () => {
             activeTool={TOOLS[0]}
             nextTool={TOOLS[1]}
             programSummary={programSummary}
-            onCycleStart={handleCycleStart}
+            onCycleStart={handleCycleStartClick}
             onFeedHold={handleFeedHold}
             onReset={handleReset}
+            cuttingParams={cuttingParams}
+            onCuttingParamsChange={updateCuttingParams}
+            isPreparingCycle={isCycleLoadingOpen}
           />
         </div>
 
@@ -350,6 +384,7 @@ const App: React.FC = () => {
       {isFileMenuOpen && <FileManager onClose={() => setIsFileMenuOpen(false)} />}
       {isHelpMenuOpen && <HelpManager onClose={() => setIsHelpMenuOpen(false)} />}
       {isSettingsOpen && <SettingsManager onClose={() => setIsSettingsOpen(false)} />}
+      <SimulationLoadingModal isOpen={isCycleLoadingOpen} onComplete={handleCycleLoadingComplete} />
     </div>
   );
 };

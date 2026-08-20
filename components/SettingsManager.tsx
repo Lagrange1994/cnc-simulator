@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import InfoTooltip from './InfoTooltip';
 
 interface SettingsManagerProps {
   onClose: () => void;
@@ -92,24 +93,6 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
   /* Carbon Helper Text — sits directly under a field, explains what it does or what changing it costs */
   const HelperText = ({ children }: { children: React.ReactNode }) => (
     <p className="text-[9px] text-cds-text-04 leading-relaxed mt-2 max-w-2xl">{children}</p>
-  );
-
-  /* Carbon Tooltip — info glyph that reveals an explanation on hover/focus, for terms a
-     non-specialist viewer wouldn't know without derailing the layout with inline copy */
-  const InfoTooltip = ({ children }: { children: React.ReactNode }) => (
-    <span className="relative inline-flex group/tooltip">
-      <button
-        type="button"
-        tabIndex={0}
-        className="text-cds-text-04 hover:text-cds-interactive focus:text-cds-interactive transition-colors"
-        aria-label="More information"
-      >
-        <span className="material-symbols-outlined text-sm align-middle">info</span>
-      </button>
-      <span className="pointer-events-none absolute left-1/2 bottom-full -translate-x-1/2 mb-2 w-64 bg-black border border-cds-border-str/50 text-cds-text-02 text-[9px] leading-relaxed p-3 chamfer-sm shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible group-focus-within/tooltip:opacity-100 group-focus-within/tooltip:visible transition-opacity z-30 normal-case tracking-normal font-normal">
-        {children}
-      </span>
-    </span>
   );
 
   return (

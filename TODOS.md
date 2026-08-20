@@ -38,6 +38,15 @@ model — that decision drives the schema shape when this is picked up.
 **Depends on:** Deciding the Material/Tool schema shape for real MRR/chip-load
 formulas (deferred, not yet started).
 
+**Related:** `/plan-eng-review` on 2026-08-21 planned `lib/machine/materials.ts`
+— a per-material lookup table (Vc range, a representative cutting-force
+constant Fc) feeding a real `RPM = Vc*1000/(π*D)` formula, built for a
+portfolio/demo "Cutting Parameters" panel in `Sidebar.tsx` (not real physics —
+explicitly disclosed as illustrative in the UI, per that review's D2). Its
+material list and field shape are a reasonable starting point for this P2's
+real `Material` type, but its Vc/Fc *values* are demo placeholders, not
+research-backed cutting data — don't carry them over uncritically.
+
 ### MachineKinematics abstraction (defer until a second machining method is planned)
 
 **What:** When turning (X/Z + C-axis) or 5-axis (A/B/C rotary heads) actually

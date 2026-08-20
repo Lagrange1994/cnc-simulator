@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Sidebar from './Sidebar';
-import { Coordinates, MachineStatus, Tool } from '../types';
+import { Coordinates, MachineStatus, Tool, CuttingParams } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
+import { DEFAULT_CUTTING_PARAMS } from '../constants';
+import { getMaterial, midpoint } from '../lib/machine/materials';
 
 const coords: Coordinates = { x: 1, y: 2, z: 3 };
 const programSummary: ProgramSummary = {
@@ -23,10 +25,15 @@ const status: MachineStatus = {
 const activeTool: Tool = { id: 'T1', name: 'Flat End Mill', diameter: '6.0mm', length: '50mm', type: 'End Mill' };
 const nextTool: Tool = { id: 'T2', name: 'Ball Nose 3mm', diameter: '3.0mm', length: '45mm', type: 'Ball Nose' };
 
-function renderSidebar(statusOverride: Partial<MachineStatus> = {}) {
+function renderSidebar(
+  statusOverride: Partial<MachineStatus> = {},
+  cuttingParamsOverride: Partial<CuttingParams> = {},
+  isPreparingCycle = false
+) {
   const onCycleStart = vi.fn();
   const onFeedHold = vi.fn();
   const onReset = vi.fn();
+  const onCuttingParamsChange = vi.fn();
   const { container } = render(
     <Sidebar
       coords={coords}
@@ -37,9 +44,12 @@ function renderSidebar(statusOverride: Partial<MachineStatus> = {}) {
       onCycleStart={onCycleStart}
       onFeedHold={onFeedHold}
       onReset={onReset}
+      cuttingParams={{ ...DEFAULT_CUTTING_PARAMS, ...cuttingParamsOverride }}
+      onCuttingParamsChange={onCuttingParamsChange}
+      isPreparingCycle={isPreparingCycle}
     />
   );
-  return { onCycleStart, onFeedHold, onReset, container };
+  return { onCycleStart, onFeedHold, onReset, onCuttingParamsChange, container };
 }
 
 describe('Sidebar', () => {
@@ -101,5 +111,65 @@ describe('Sidebar', () => {
     renderSidebar();
     expect(screen.getByText('FEED HOLD').closest('button')?.className).toContain('chamfer-border');
     expect(screen.getByText('RESET').closest('button')?.className).toContain('chamfer-border');
+  });
+
+  it('disables CYCLE START during the fake-computing loading window, not just while simulating', () => {
+    renderSidebar({ isSimulating: false }, {}, true);
+    expect(screen.getByText('CYCLE START').closest('button')).toBeDisabled();
+  });
+
+  it('changing material patches materialId and resets Vc/feed to the new material\'s midpoint', async () => {
+    const user = userEvent.setup();
+    const { onCuttingParamsChange } = renderSidebar();
+
+    await user.selectOptions(screen.getByLabelText('Workpiece material'), 'titanium');
+
+    const titanium = getMaterial('titanium');
+    expect(onCuttingParamsChange).toHaveBeenCalledWith({
+      materialId: 'titanium',
+      vcMPerMin: midpoint(titanium.vcRangeMPerMin),
+      feedMmPerMin: midpoint(titanium.feedRangeMmPerMin),
+    });
+  });
+
+  it('locks the material selector and Vc controls while simulating', () => {
+    renderSidebar({ isSimulating: true });
+    expect(screen.getByLabelText('Workpiece material')).toBeDisabled();
+    expect(screen.getByLabelText('Cutting speed slider')).toBeDisabled();
+  });
+
+  it('locks the material selector during the fake-computing loading window too', () => {
+    renderSidebar({ isSimulating: false }, {}, true);
+    expect(screen.getByLabelText('Workpiece material')).toBeDisabled();
+  });
+
+  it('does not lock the material selector when idle and not preparing a cycle', () => {
+    renderSidebar({ isSimulating: false }, {}, false);
+    expect(screen.getByLabelText('Workpiece material')).not.toBeDisabled();
+  });
+
+  it('derives RPM and Power from the selected material and Vc, not a hardcoded value', () => {
+    // aluminum default: vc = midpoint(200,400) = 300 m/min, tool diameter 6mm
+    // RPM = 300*1000/(pi*6) ~= 15915; Power = 400*300/60000 = 2.00 kW
+    renderSidebar();
+    expect(screen.getByText('15,915')).toBeInTheDocument();
+    expect(screen.getByText('2.00')).toBeInTheDocument();
+  });
+
+  it('titanium recommends a visibly lower RPM than aluminum for the same tool, avoiding the "wrong combo" scenario', () => {
+    const titanium = getMaterial('titanium');
+    renderSidebar({}, { materialId: 'titanium', vcMPerMin: midpoint(titanium.vcRangeMPerMin) });
+    // RPM = midpoint(20,50)*1000/(pi*6) = 35*1000/(pi*6) ~= 1857 -- nowhere near aluminum's ~15,915
+    expect(screen.getByText('1,857')).toBeInTheDocument();
+  });
+
+  it('shows a Cutting Power tooltip with the P = Fc x Vc / 60000 formula', () => {
+    renderSidebar();
+    expect(screen.getByText(/P = Fc.*Vc \/ 60000/)).toBeInTheDocument();
+  });
+
+  it('marks the Cutting Parameters panel as a concept/illustrative value, distinct from the real Cutting Result stats', () => {
+    renderSidebar();
+    expect(screen.getByText('Concept')).toBeInTheDocument();
   });
 });

@@ -39,6 +39,16 @@ export interface LogMessage {
   text: string;
 }
 
+/** Cutting Parameters panel state (Sidebar.tsx) -- which material is
+ * selected and the cutting speed/feed rate within that material's
+ * recommended range. RPM and Power are derived, not stored (see
+ * lib/machine/materials.ts), so they can't drift out of sync with Vc. */
+export interface CuttingParams {
+  materialId: string;
+  vcMPerMin: number;
+  feedMmPerMin: number;
+}
+
 export type RenderMode = 'SOLID' | 'WIREFRAME' | 'X-RAY' | 'PLASTIC';
 export type Projection = 'PERSPECTIVE' | 'ORTHOGRAPHIC';
 
