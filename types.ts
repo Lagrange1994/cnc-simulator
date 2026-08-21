@@ -12,6 +12,28 @@ export interface GCodeLine {
   comment?: string;
   params?: string;
   type?: 'motion' | 'setup' | 'system';
+  /** True for a line prefixed with "/" in real G-code -- bypassed entirely
+   * when the Block Skip modifier is on, executed normally when it's off. */
+  blockSkip?: boolean;
+}
+
+/** Program execution modifiers -- the standard toggle bank next to Cycle
+ * Start on every commercial control, separate from Feed/Spindle Override
+ * (Overrides) because these change *what* runs, not how fast.
+ * - singleBlock: auto-pause after every line, requiring another CYCLE START
+ *   to advance -- stays live mid-cut, like Overrides.
+ * - optionalStop: pause when the program hits an M01 line (ignored when off).
+ *   Also stays live mid-cut.
+ * - dryRun: motion lines run at rapid rate regardless of programmed feed --
+ *   changes the timeline's shape, so it's locked while simulating.
+ * - blockSkip: lines with `blockSkip: true` are bypassed entirely -- also
+ *   changes the timeline's shape, also locked while simulating.
+ */
+export interface ExecutionModifiers {
+  singleBlock: boolean;
+  dryRun: boolean;
+  optionalStop: boolean;
+  blockSkip: boolean;
 }
 
 export interface MachineStatus {

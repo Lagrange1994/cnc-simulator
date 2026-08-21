@@ -109,6 +109,72 @@ describe('computeGCodeTimeline', () => {
     const { entries } = computeGCodeTimeline(lines, startCoords, 1200);
     expect(entries[0].spindleRpm).toBe(0);
   });
+
+  describe('dryRun option', () => {
+    it('runs a G01 line at rapid rate instead of its programmed feed rate', () => {
+      const lines: GCodeLine[] = [
+        { id: '1', lineNum: '1', command: 'G01', params: 'X100 F100' }, // slow feed
+      ];
+      const normal = computeGCodeTimeline(lines, startCoords, 1200, 30000);
+      const dry = computeGCodeTimeline(lines, startCoords, 1200, 30000, { dryRun: true });
+      expect(dry.totalDurationMs).toBeLessThan(normal.totalDurationMs);
+    });
+
+    it('does not change G00 duration, which already runs at rapid rate', () => {
+      const lines: GCodeLine[] = [
+        { id: '1', lineNum: '1', command: 'G00', params: 'X100' },
+      ];
+      const normal = computeGCodeTimeline(lines, startCoords, 1200, 30000);
+      const dry = computeGCodeTimeline(lines, startCoords, 1200, 30000, { dryRun: true });
+      expect(dry.totalDurationMs).toBe(normal.totalDurationMs);
+    });
+  });
+
+  describe('skipFlaggedBlocks option', () => {
+    it('gives a blockSkip line zero duration when skipFlaggedBlocks is on', () => {
+      const lines: GCodeLine[] = [
+        { id: '1', lineNum: '1', command: 'M08', params: undefined, blockSkip: true },
+      ];
+      const { entries } = computeGCodeTimeline(lines, startCoords, 1200, 30000, { skipFlaggedBlocks: true });
+      expect(entries[0].durationMs).toBe(0);
+      expect(entries[0].skipped).toBe(true);
+    });
+
+    it('runs a blockSkip line normally when skipFlaggedBlocks is off', () => {
+      const lines: GCodeLine[] = [
+        { id: '1', lineNum: '1', command: 'M08', params: undefined, blockSkip: true },
+      ];
+      const { entries } = computeGCodeTimeline(lines, startCoords, 1200, 30000, { skipFlaggedBlocks: false });
+      expect(entries[0].durationMs).toBe(300);
+      expect(entries[0].skipped).toBeUndefined();
+    });
+
+    it('does not let a skipped line\'s F-word become the active feed rate', () => {
+      const lines: GCodeLine[] = [
+        { id: '1', lineNum: '1', command: 'G01', params: 'X10 F900', blockSkip: true },
+        { id: '2', lineNum: '2', command: 'G01', params: 'X20' },
+      ];
+      const { entries } = computeGCodeTimeline(lines, startCoords, 1200, 30000, { skipFlaggedBlocks: true });
+      expect(entries[1].feedRate).toBe(1200); // the initial feed rate, not the skipped F900
+    });
+
+    it('does not let a skipped motion line change coords', () => {
+      const lines: GCodeLine[] = [
+        { id: '1', lineNum: '1', command: 'G01', params: 'X99 Y99', blockSkip: true },
+        { id: '2', lineNum: '2', command: 'G01', params: 'X5' },
+      ];
+      const { entries } = computeGCodeTimeline(lines, startCoords, 1200, 30000, { skipFlaggedBlocks: true });
+      expect(entries[1].coords).toEqual({ x: 5, y: startCoords.y, z: startCoords.z });
+    });
+
+    it('does not skip a blockSkip line\'s duration when the line itself is a normal (non-flagged) one', () => {
+      const lines: GCodeLine[] = [
+        { id: '1', lineNum: '1', command: 'M08', params: undefined }, // no blockSkip flag
+      ];
+      const { entries } = computeGCodeTimeline(lines, startCoords, 1200, 30000, { skipFlaggedBlocks: true });
+      expect(entries[0].durationMs).toBe(300);
+    });
+  });
 });
 
 describe('findActiveEntry', () => {

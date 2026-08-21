@@ -1,5 +1,5 @@
 
-import { GCodeLine, Tool, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets } from './types';
+import { GCodeLine, Tool, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, ExecutionModifiers } from './types';
 import { MATERIALS, midpoint } from './lib/machine/materials';
 
 export const INITIAL_GCODE: GCodeLine[] = [
@@ -14,8 +14,10 @@ export const INITIAL_GCODE: GCodeLine[] = [
   { id: '9', lineNum: '009', command: 'G01', params: 'X0 Y50', type: 'motion' },
   { id: '10', lineNum: '010', command: 'G01', params: 'X0 Y0', type: 'motion' },
   { id: '11', lineNum: '011', command: 'G00', params: 'Z10', type: 'motion' },
-  { id: '12', lineNum: '012', command: 'M05', type: 'system' },
-  { id: '13', lineNum: '013', command: 'M30', type: 'system' },
+  { id: '12', lineNum: '012', command: 'M01', comment: 'Optional Stop -- Verify Part', type: 'system' },
+  { id: '13', lineNum: '013', command: 'M08', comment: 'Optional Coolant Blast', type: 'system', blockSkip: true },
+  { id: '14', lineNum: '014', command: 'M05', type: 'system' },
+  { id: '15', lineNum: '015', command: 'M30', type: 'system' },
 ];
 
 export const TOOLS: Tool[] = [
@@ -51,6 +53,13 @@ export const DEFAULT_OVERRIDES: Overrides = {
 export const OVERRIDE_PCT_MIN = 0;
 export const OVERRIDE_PCT_MAX = 150;
 export const OVERRIDE_PCT_STEP = 5;
+
+export const DEFAULT_EXECUTION_MODIFIERS: ExecutionModifiers = {
+  singleBlock: false,
+  dryRun: false,
+  optionalStop: false,
+  blockSkip: false,
+};
 
 export const WCS_IDS: WcsId[] = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59'];
 export const DEFAULT_ACTIVE_WCS: WcsId = 'G54';

@@ -137,7 +137,7 @@ describe('App simulation loop', () => {
     });
 
     expect(screen.getByText('COMPLETION 100%')).toBeInTheDocument();
-    expect(screen.getByText(/Executing line 013: M30/)).toBeInTheDocument();
+    expect(screen.getByText(/Executing line 015: M30/)).toBeInTheDocument();
     // Final program state: G00 Z10 (line 011) returns to X0 Y0 Z10.
     expect(screen.getAllByText('0000.000')).toHaveLength(2); // X and Y
     expect(screen.getByText('0010.000')).toBeInTheDocument(); // Z
@@ -430,5 +430,116 @@ describe('Tool Offset Table', () => {
     fireEvent.click(screen.getByText('Edit'));
 
     expect(screen.getByLabelText('T1 diameter offset')).toHaveValue(6.5);
+  });
+});
+
+describe('Program Execution Modifiers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('Single Block pauses after exactly one line and resumes one line at a time on each CYCLE START', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'SNGL BLK' }));
+
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(300); // crosses from line 001 into line 002
+    });
+
+    expect(screen.getByText('CYCLE START')).not.toBeDisabled(); // auto-paused, not still running
+    expect(screen.getByText(/Single Block: paused after line 002/)).toBeInTheDocument();
+
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      // Progress is stored rounded to 0.1%, so resuming from it can land a
+      // few ms short of the exact line boundary -- pad past that rounding
+      // slack rather than asserting on the exact 300ms line duration again.
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByText(/Single Block: paused after line 003/)).toBeInTheDocument();
+  });
+
+  it('Optional Stop pauses at M01 and a further CYCLE START resumes to completion', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'OPT STOP' }));
+
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000); // would reach 100% if nothing paused it
+    });
+
+    expect(screen.getByText(/Optional Stop \(M01\) at line 012/)).toBeInTheDocument();
+    expect(completionPercent()).toBeLessThan(100);
+    expect(screen.getByText('CYCLE START')).not.toBeDisabled();
+
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(screen.getByText('COMPLETION 100%')).toBeInTheDocument();
+  });
+
+  it('does not pause at M01 when Optional Stop is off (the default)', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000);
+    });
+    expect(screen.getByText('COMPLETION 100%')).toBeInTheDocument();
+  });
+
+  it('Dry Run finishes measurably faster than a normal run over the same wall-clock time', () => {
+    const { unmount } = render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    const normalPercent = completionPercent();
+    unmount();
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'DRY RUN' }));
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    const dryRunPercent = completionPercent();
+
+    expect(dryRunPercent).toBeGreaterThan(normalPercent);
+  });
+
+  it('locks the Dry Run and Block Skip toggles once the machine is simulating', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    expect(screen.getByRole('button', { name: 'DRY RUN' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'BLK SKIP' })).toBeDisabled();
+  });
+
+  it('Block Skip bypasses the flagged line instead of executing it', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'BLK SKIP' }));
+
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000);
+    });
+
+    expect(screen.getByText('COMPLETION 100%')).toBeInTheDocument();
+    expect(screen.getByText(/Block Skip: line 013 \(M08\) bypassed/)).toBeInTheDocument();
+    expect(screen.queryByText(/Executing line 013: M08/)).not.toBeInTheDocument();
+  });
+
+  it('executes the flagged line normally when Block Skip is off (the default)', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000);
+    });
+    expect(screen.getByText(/Executing line 013: M08/)).toBeInTheDocument();
   });
 });

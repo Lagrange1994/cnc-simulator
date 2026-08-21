@@ -12,8 +12,8 @@ import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool } from './types';
-import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS } from './constants';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers } from './types';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
 import { MACHINE_SPEC } from './lib/machine/spec';
@@ -74,6 +74,16 @@ const App: React.FC = () => {
   const [tools, setTools] = useState<Tool[]>(TOOLS);
   const updateTool = useCallback((id: string, patch: Partial<Tool>) => {
     setTools(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
+  }, []);
+  // Program execution modifiers (Editor.tsx toggle strip). singleBlock and
+  // optionalStop are read live by the pacing effect's interval closure and
+  // don't reshape the timeline, so they stay togglable mid-cut (see their
+  // dependency-array entries below, same reasoning as overrides.feedPct).
+  // dryRun/blockSkip change gcodeTimeline's shape instead, so Editor.tsx
+  // locks those two while simulating.
+  const [execModifiers, setExecModifiers] = useState<ExecutionModifiers>(DEFAULT_EXECUTION_MODIFIERS);
+  const updateExecModifiers = useCallback((patch: Partial<ExecutionModifiers>) => {
+    setExecModifiers(prev => ({ ...prev, ...patch }));
   }, []);
   // The ~1.5s "computing" theater between CYCLE START and the real
   // simulation starting (SimulationLoadingModal). Its message-sequencing
@@ -165,12 +175,17 @@ const App: React.FC = () => {
     };
   }, [isResizingLeft, isResizingRight, isResizingTerminal]);
 
-  // G-code timeline: precomputed once since INITIAL_GCODE is static. Feed
-  // rate (F-word) drives each motion line's duration, so a G01 F100 move
-  // actually takes longer to animate than the same distance at F5000.
+  // G-code timeline. Feed rate (F-word) drives each motion line's duration,
+  // so a G01 F100 move actually takes longer to animate than the same
+  // distance at F5000. Recomputes when dryRun/blockSkip change (they alter
+  // the timeline's shape); Editor.tsx locks both while simulating, so this
+  // never reshapes the timeline out from under an in-progress run.
   const gcodeTimeline = useMemo(
-    () => computeGCodeTimeline(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200),
-    []
+    () => computeGCodeTimeline(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200, 30000, {
+      dryRun: execModifiers.dryRun,
+      skipFlaggedBlocks: execModifiers.blockSkip,
+    }),
+    [execModifiers.dryRun, execModifiers.blockSkip]
   );
 
   const programSummary = useMemo(
@@ -212,15 +227,21 @@ const App: React.FC = () => {
     // program's actual position.
     const applyThrough = (targetIndex: number) => {
       let latestSpindle: number | undefined;
+      let hitOptionalStop = false;
       for (let i = lastLineIndexRef.current + 1; i <= targetIndex; i++) {
         const e = gcodeTimeline.entries[i];
-        addLog(`Executing line ${e.line.lineNum}: ${e.line.command} ${e.line.params || ''}`);
-        if (e.spindleRpm !== undefined) latestSpindle = e.spindleRpm;
+        if (e.skipped) {
+          addLog(`Block Skip: line ${e.line.lineNum} (${e.line.command}) bypassed.`);
+        } else {
+          addLog(`Executing line ${e.line.lineNum}: ${e.line.command} ${e.line.params || ''}`);
+          if (e.spindleRpm !== undefined) latestSpindle = e.spindleRpm;
+          if (e.line.command === 'M01') hitOptionalStop = true;
+        }
       }
       const finalEntry = gcodeTimeline.entries[targetIndex];
       lastLineIndexRef.current = targetIndex;
       setCoords(finalEntry.coords);
-      return { feedRate: finalEntry.feedRate, spindleRpm: latestSpindle };
+      return { feedRate: finalEntry.feedRate, spindleRpm: latestSpindle, hitOptionalStop };
     };
 
     const interval = setInterval(() => {
@@ -251,21 +272,38 @@ const App: React.FC = () => {
       const lineChanged = entry.index !== lastLineIndexRef.current;
 
       if (lineChanged) {
-        const { feedRate, spindleRpm } = applyThrough(entry.index);
+        const { feedRate, spindleRpm, hitOptionalStop } = applyThrough(entry.index);
+        // Single Block pauses after every line; Optional Stop only pauses on
+        // an M01 the timeline just crossed. Both reuse the exact resume
+        // mechanism Feed Hold -> Cycle Start already relies on (startedAt is
+        // recomputed from status.progress above), so the next CYCLE START
+        // click steps to just the next line rather than restarting.
+        const autoPauseReason = execModifiers.singleBlock
+          ? `Single Block: paused after line ${entry.line.lineNum}.`
+          : (execModifiers.optionalStop && hitOptionalStop)
+            ? `Optional Stop (M01) at line ${entry.line.lineNum}.`
+            : null;
+
         setStatus(prev => ({
           ...prev,
+          isSimulating: autoPauseReason ? false : prev.isSimulating,
           progress: nextProgress,
           activeLineIndex: entry.index,
           feedRate,
           spindleRpm: spindleRpm !== undefined ? spindleRpm : prev.spindleRpm,
         }));
+
+        if (autoPauseReason) {
+          clearInterval(interval);
+          addLog(autoPauseReason, 'warn');
+        }
       } else {
         setStatus(prev => ({ ...prev, progress: nextProgress }));
       }
     }, 100);
 
     return () => clearInterval(interval);
-  }, [status.isSimulating, gcodeTimeline, addLog, overrides.feedPct]);
+  }, [status.isSimulating, gcodeTimeline, addLog, overrides.feedPct, execModifiers.singleBlock, execModifiers.optionalStop]);
 
   useEffect(() => {
     setActiveLineIndex(status.activeLineIndex);
@@ -427,6 +465,9 @@ const App: React.FC = () => {
            <Editor
             lines={INITIAL_GCODE}
             activeLineIndex={activeLineIndex}
+            execModifiers={execModifiers}
+            onExecModifiersChange={updateExecModifiers}
+            isCuttingLocked={status.isSimulating || isCycleLoadingOpen}
           />
           {/* Vertical Resizer */}
           <div

@@ -49,6 +49,18 @@ export interface GCodeTimelineEntry {
   feedRate: number;
   /** Spindle RPM set by this line's S-word, if any. */
   spindleRpm?: number;
+  /** True when this entry was bypassed by the Block Skip modifier -- zero
+   * duration, and its params were never applied to coords/feedRate. */
+  skipped?: boolean;
+}
+
+export interface GCodeTimelineOptions {
+  /** Motion lines run at rapidRateMmPerMin regardless of their programmed
+   * feed rate -- verifying the toolpath without cutting at production speed. */
+  dryRun?: boolean;
+  /** Lines with `blockSkip: true` (a "/" prefix in real G-code) are bypassed
+   * entirely: zero duration, no effect on coords/feedRate/spindle. */
+  skipFlaggedBlocks?: boolean;
 }
 
 export interface GCodeTimeline {
@@ -69,13 +81,33 @@ export function computeGCodeTimeline(
   lines: GCodeLine[],
   startCoords: Coordinates,
   initialFeedRateMmPerMin: number,
-  rapidRateMmPerMin = 30000
+  rapidRateMmPerMin = 30000,
+  options: GCodeTimelineOptions = {}
 ): GCodeTimeline {
   let coords = startCoords;
   let feedRate = initialFeedRateMmPerMin;
   let cursor = 0;
 
   const entries: GCodeTimelineEntry[] = lines.map((line, index) => {
+    const startMs = cursor;
+
+    // A skipped block is bypassed entirely -- as if the line weren't in the
+    // program at all: zero duration, and its params never touch coords or
+    // feedRate (a skipped F-word must not become the active feed rate).
+    if (options.skipFlaggedBlocks && line.blockSkip) {
+      return {
+        line,
+        index,
+        startMs,
+        durationMs: 0,
+        endMs: startMs,
+        coords,
+        feedRate,
+        spindleRpm: undefined,
+        skipped: true,
+      };
+    }
+
     const parsed = parseGCodeParams(line.params);
     const target: Coordinates = {
       x: parsed.x ?? coords.x,
@@ -89,11 +121,12 @@ export function computeGCodeTimeline(
     let durationMs = NON_MOTION_DURATION_MS;
     if (line.command === 'G00' || line.command === 'G01') {
       const dist = distance3D(coords, target);
-      const rate = line.command === 'G00' ? rapidRateMmPerMin : feedRate;
+      // Dry Run verifies the toolpath at rapid rate regardless of what's
+      // programmed -- G00 always ignores feedRate, so it's unaffected either way.
+      const rate = (line.command === 'G00' || options.dryRun) ? rapidRateMmPerMin : feedRate;
       durationMs = rate > 0 ? Math.max(MIN_LINE_DURATION_MS, (dist / rate) * 60000) : MIN_LINE_DURATION_MS;
     }
 
-    const startMs = cursor;
     const endMs = startMs + durationMs;
     cursor = endMs;
     coords = target;
