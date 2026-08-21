@@ -72,7 +72,7 @@ const FileManager: React.FC<FileManagerProps> = ({ onClose }) => {
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-cds-interactive text-2xl">folder_shared</span>
             <div>
-              <h1 id="file-manager-title" className="text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">FILE SYSTEM MANAGER</h1>
+              <h1 id="file-manager-title" className="font-display text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">FILE SYSTEM MANAGER</h1>
               <p className="text-[9px] text-cds-text-04 font-mono tracking-widest uppercase">Storage // Workspace Access & Cloud Sync</p>
             </div>
           </div>

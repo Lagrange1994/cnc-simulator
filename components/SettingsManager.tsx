@@ -29,7 +29,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
       ? 'Balanced resolution: suitable for most roughing and semi-finishing toolpaths.'
       : 'Coarse resolution: fastest to compute, but may miss small features under a few tenths of a millimeter.';
 
-  const [editorFont, setEditorFont] = useState('IBM Plex Mono');
+  const [editorFont, setEditorFont] = useState('JetBrains Mono');
   const [editorFontSize, setEditorFontSize] = useState(14);
   const [editorTheme, setEditorTheme] = useState('Carbon Dark');
   const [autoComplete, setAutoComplete] = useState(true);
@@ -104,7 +104,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-cds-interactive text-2xl">admin_panel_settings</span>
             <div>
-              <h1 id="settings-manager-title" className="text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM CONFIGURATION</h1>
+              <h1 id="settings-manager-title" className="font-display text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM CONFIGURATION</h1>
               <p className="text-[9px] text-cds-text-04 font-mono tracking-widest uppercase">BIOS Setup Utility // Kernel v4.2</p>
             </div>
           </div>
@@ -534,8 +534,8 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                         <label className="block text-[9px] text-cds-text-04 uppercase font-semibold mb-2">Font Family</label>
                         <div className="relative">
                           <select value={editorFont} onChange={(e) => setEditorFont(e.target.value)} className={`w-full ${inputCls}`}>
-                            <option>IBM Plex Mono</option>
                             <option>JetBrains Mono</option>
+                            <option>IBM Plex Mono</option>
                             <option>Fira Code</option>
                             <option>Source Code Pro</option>
                           </select>

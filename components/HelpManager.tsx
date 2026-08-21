@@ -47,7 +47,7 @@ const HelpManager: React.FC<HelpManagerProps> = ({ onClose }) => {
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-cds-interactive text-2xl">help_center</span>
             <div>
-              <h1 id="help-manager-title" className="text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM COMMAND CENTER</h1>
+              <h1 id="help-manager-title" className="font-display text-cds-text-01 font-semibold text-body-sm tracking-[0.3em] uppercase leading-tight">SYSTEM COMMAND CENTER</h1>
               <p className="text-[9px] text-cds-text-04 font-mono tracking-widest uppercase">Knowledge Base // Central Database Access</p>
             </div>
           </div>

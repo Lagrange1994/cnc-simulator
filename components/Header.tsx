@@ -51,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({
         </div>
         {/* $productive-heading-02 equivalent */}
         <div className="flex flex-col">
-          <h1 className="text-cds-text-01 text-base font-semibold tracking-wide uppercase leading-none">Super High Tech</h1>
+          <h1 className="font-display text-cds-text-01 text-base font-semibold tracking-wide uppercase leading-none">Super High Tech</h1>
           <span className="text-label font-mono text-cds-text-03 tracking-widest">CNC SIMULATOR v4.2</span>
         </div>
       </div>
