@@ -54,3 +54,13 @@ describe('Header alarm bell', () => {
     expect(onOpenAlarms).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Header Connected tag / Fleet View entry point', () => {
+  it('calls onOpenFleetView when the Connected tag is clicked', async () => {
+    const onOpenFleetView = vi.fn();
+    const user = userEvent.setup();
+    render(<Header {...baseProps} onOpenFleetView={onOpenFleetView} />);
+    await user.click(screen.getByText('Connected: Machine_01'));
+    expect(onOpenFleetView).toHaveBeenCalledTimes(1);
+  });
+});

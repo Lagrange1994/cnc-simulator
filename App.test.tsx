@@ -543,3 +543,69 @@ describe('Program Execution Modifiers', () => {
     expect(screen.getByText(/Executing line 013: M08/)).toBeInTheDocument();
   });
 });
+
+describe('Machine Fleet View', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('opens from the Connected tag and lists MACHINE_01 alongside the rest of the shop floor', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Connected: Machine_01'));
+
+    expect(screen.getByText('MACHINE FLEET')).toBeInTheDocument();
+    expect(screen.getAllByText('MACHINE_01').length).toBeGreaterThan(0);
+    expect(screen.getByText('HAAS_VF2')).toBeInTheDocument();
+    expect(screen.getByText('5_AXIS_MILL')).toBeInTheDocument();
+    expect(screen.getByText('ENDER_3')).toBeInTheDocument();
+  });
+
+  it('shows MACHINE_01 as IDLE when the simulator is idle', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Connected: Machine_01'));
+
+    const machine01Card = screen.getByText('MACHINE_01').closest('div.chamfer-md') as HTMLElement;
+    expect(within(machine01Card).getByText('IDLE')).toBeInTheDocument();
+  });
+
+  it('shows MACHINE_01 as RUNNING with live completion percent while simulating', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    const liveCompletion = completionPercent();
+
+    fireEvent.click(screen.getByText('Connected: Machine_01'));
+
+    const machine01Card = screen.getByText('MACHINE_01').closest('div.chamfer-md') as HTMLElement;
+    expect(within(machine01Card).getByText('RUNNING')).toBeInTheDocument();
+    expect(within(machine01Card).getByText(`${Math.round(liveCompletion)}%`)).toBeInTheDocument();
+  });
+
+  it('shows MACHINE_01 as ALARM when a real alarm is active, overriding the running/idle state', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading(); // seeds the spindle-overspeed alarm immediately
+
+    fireEvent.click(screen.getByText('Connected: Machine_01'));
+
+    const machine01Card = screen.getByText('MACHINE_01').closest('div.chamfer-md') as HTMLElement;
+    expect(within(machine01Card).getByText('ALARM')).toBeInTheDocument();
+  });
+
+  it('closes and hides the app shell from the accessibility tree while open, like the other full-screen modals', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Connected: Machine_01'));
+
+    const shellHeading = screen.getByText('Super High Tech');
+    expect(shellHeading.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Close Machine Fleet'));
+    expect(screen.queryByText('MACHINE FLEET')).not.toBeInTheDocument();
+    expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
+  });
+});

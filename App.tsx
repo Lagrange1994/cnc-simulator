@@ -12,6 +12,7 @@ import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
+import FleetView from './components/FleetView';
 import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers } from './types';
 import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
@@ -40,6 +41,7 @@ const App: React.FC = () => {
   // link straight to System Logs instead of the default G-Code Dictionary.
   const [helpInitialTab, setHelpInitialTab] = useState('G-Code Dictionary');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isFleetViewOpen, setIsFleetViewOpen] = useState(false);
   const [viewSettings, setViewSettings] = useState<ViewSettings>(DEFAULT_VIEW_SETTINGS);
   const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
     setViewSettings(prev => ({ ...prev, ...patch }));
@@ -95,7 +97,7 @@ const App: React.FC = () => {
   // of the shell behind them so screen readers see one active H1 at a time.
   // The cycle-loading modal joins this set too: it's a transient overlay,
   // not a document root, but the background shell should stay just as inert.
-  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isCycleLoadingOpen;
+  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isFleetViewOpen || isCycleLoadingOpen;
   const [leftWidth, setLeftWidth] = useState(420);
   const [rightWidth, setRightWidth] = useState(340);
   const [terminalHeight, setTerminalHeight] = useState(200);
@@ -451,6 +453,7 @@ const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenAlarms={() => openHelpMenu('System Logs')}
         hasActiveAlarm={hasActiveAlarm}
+        onOpenFleetView={() => setIsFleetViewOpen(true)}
         isEditActive={isEditMenuOpen}
         isViewActive={isViewMenuOpen}
         isHelpActive={isHelpMenuOpen}
@@ -557,6 +560,17 @@ const App: React.FC = () => {
       {isFileMenuOpen && <FileManager onClose={() => setIsFileMenuOpen(false)} />}
       {isHelpMenuOpen && <HelpManager onClose={() => setIsHelpMenuOpen(false)} alarms={alarms} initialTab={helpInitialTab} />}
       {isSettingsOpen && <SettingsManager onClose={() => setIsSettingsOpen(false)} />}
+      {isFleetViewOpen && (
+        <FleetView
+          onClose={() => setIsFleetViewOpen(false)}
+          liveMachine={{
+            isSimulating: status.isSimulating,
+            hasActiveAlarm,
+            completionPercent: status.progress,
+            activeLineLabel: `line ${INITIAL_GCODE[status.activeLineIndex]?.lineNum ?? '001'} (${INITIAL_GCODE[status.activeLineIndex]?.command ?? 'G21'})`,
+          }}
+        />
+      )}
       <SimulationLoadingModal isOpen={isCycleLoadingOpen} onComplete={handleCycleLoadingComplete} />
     </div>
   );

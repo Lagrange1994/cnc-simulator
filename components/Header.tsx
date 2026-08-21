@@ -12,6 +12,8 @@ interface HeaderProps {
   /** True when at least one alarm in history has status 'active' -- swaps
    * the notification bell's dot from the idle blue to a pulsing red. */
   hasActiveAlarm?: boolean;
+  /** Opens the Machine Fleet view (the Connected tag becomes a button). */
+  onOpenFleetView?: () => void;
   isEditActive?: boolean;
   isViewActive?: boolean;
   isHelpActive?: boolean;
@@ -44,6 +46,7 @@ const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenAlarms,
   hasActiveAlarm,
+  onOpenFleetView,
   isEditActive,
   isViewActive,
   isHelpActive
@@ -114,11 +117,17 @@ const Header: React.FC<HeaderProps> = ({
       </nav>
 
       <div className="flex items-center gap-4">
-        {/* Connection tag – Carbon Tag component style */}
-        <div className="flex items-center gap-2 bg-cds-layer-01 px-3 py-1.5 border border-cds-border">
-          <span className="w-2 h-2 bg-cds-success animate-pulse"></span>
+        {/* Connection tag – Carbon Tag component style. Doubles as the
+            Machine Fleet entry point: this is one machine among several on
+            the shop floor (see FleetView.tsx). */}
+        <button
+          onClick={onOpenFleetView}
+          className="flex items-center gap-2 bg-cds-layer-01 hover:bg-cds-layer-02 px-3 py-1.5 border border-cds-border transition-colors"
+          title="View machine fleet"
+        >
+          <span className="w-2 h-2 bg-cds-success animate-pulse" aria-hidden="true"></span>
           <span className="text-label text-cds-text-02 font-mono uppercase">Connected: Machine_01</span>
-        </div>
+        </button>
         <div className="h-8 w-px bg-cds-border mx-1"></div>
         <div className="flex gap-1">
           <button
