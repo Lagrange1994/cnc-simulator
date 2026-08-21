@@ -114,16 +114,20 @@ const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="h-8 w-px bg-cds-border mx-1"></div>
         <div className="flex gap-1">
-          <button className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative">
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
-            <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-cds-interactive"></span>
+          <button
+            className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative"
+            aria-label="Notifications"
+          >
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">notifications</span>
+            <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-cds-interactive" aria-hidden="true"></span>
           </button>
           <button
             onClick={onOpenSettings}
             className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors"
             title="System Configuration"
+            aria-label="System configuration"
           >
-            <span className="material-symbols-outlined text-[20px]">settings</span>
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">settings</span>
           </button>
           <div
             className="w-8 h-8 bg-cover bg-center border border-cds-border ml-2 cursor-pointer bg-cds-layer-01"

@@ -249,30 +249,34 @@ const Viewport: React.FC<ViewportProps> = ({ isSimulating, progress, coords, lin
             onClick={() => adjustZoom(0.2)}
             className="size-11 flex items-center justify-center hover:bg-white/10 text-white rounded-sm transition-colors"
             title="Zoom In"
+            aria-label="Zoom in"
           >
-            <span className="material-symbols-outlined text-lg">add</span>
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">add</span>
           </button>
           <button
             onClick={() => adjustZoom(-0.2)}
             className="size-11 flex items-center justify-center hover:bg-white/10 text-white rounded-sm transition-colors"
             title="Zoom Out"
+            aria-label="Zoom out"
           >
-            <span className="material-symbols-outlined text-lg">remove</span>
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">remove</span>
           </button>
           <div className="w-[1px] h-4 bg-white/20 my-auto"></div>
           <button
             onClick={resetView}
             className="size-11 flex items-center justify-center hover:bg-white/10 text-white rounded-sm transition-colors"
             title="Reset View (Home)"
+            aria-label="Reset view"
           >
-            <span className="material-symbols-outlined text-lg">center_focus_strong</span>
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">center_focus_strong</span>
           </button>
           <button
             onClick={frameTool}
             className="size-11 flex items-center justify-center hover:bg-white/10 text-[#4589ff] rounded-sm transition-colors"
             title="Frame Tool (.)"
+            aria-label="Frame tool in view"
           >
-            <span className="material-symbols-outlined text-lg">my_location</span>
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">my_location</span>
           </button>
         </div>
       </div>
