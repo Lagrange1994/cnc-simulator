@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Editor from './Editor';
-import { GCodeLine, ExecutionModifiers } from '../types';
-import { DEFAULT_EXECUTION_MODIFIERS } from '../constants';
+import { GCodeLine, ExecutionModifiers, ProgramSource } from '../types';
+import { DEFAULT_EXECUTION_MODIFIERS, PROGRAM_FILE_NAME } from '../constants';
 
 const lines: GCodeLine[] = [
   { id: '1', lineNum: '001', command: 'G21', comment: 'Metric Units', type: 'setup' },
@@ -15,9 +15,13 @@ function renderEditor(
   activeLineIndex = 0,
   execModifiersOverride: Partial<ExecutionModifiers> = {},
   isCuttingLocked = false,
-  linesOverride: GCodeLine[] = lines
+  linesOverride: GCodeLine[] = lines,
+  programSource: ProgramSource = 'demo',
+  programName: string = PROGRAM_FILE_NAME
 ) {
   const onExecModifiersChange = vi.fn();
+  const onLoadFile = vi.fn();
+  const onSaveFile = vi.fn();
   render(
     <Editor
       lines={linesOverride}
@@ -25,9 +29,13 @@ function renderEditor(
       execModifiers={{ ...DEFAULT_EXECUTION_MODIFIERS, ...execModifiersOverride }}
       onExecModifiersChange={onExecModifiersChange}
       isCuttingLocked={isCuttingLocked}
+      programName={programName}
+      programSource={programSource}
+      onLoadFile={onLoadFile}
+      onSaveFile={onSaveFile}
     />
   );
-  return { onExecModifiersChange };
+  return { onExecModifiersChange, onLoadFile, onSaveFile };
 }
 
 describe('Editor', () => {
@@ -96,6 +104,39 @@ describe('Editor', () => {
       renderEditor(0, {}, false, noUnitsLines);
       expect(screen.getByText('Unspecified')).toBeInTheDocument();
     });
+
+    it('shows "User Upload" and honestly omits fabricated CAM metadata for an uploaded program', () => {
+      renderEditor(0, {}, false, lines, 'upload', 'MY_PART.NC');
+      expect(screen.getByText(/Source:/)).toBeInTheDocument();
+      expect(screen.getByText(/User Upload/)).toBeInTheDocument();
+      expect(screen.queryByText('Autodesk Fusion 360 CAM v2.0.19')).not.toBeInTheDocument();
+      expect(screen.getByText('Unknown -- user-uploaded file')).toBeInTheDocument();
+      expect(screen.getByText('MY_PART.NC')).toBeInTheDocument();
+    });
+  });
+
+  describe('File load / save', () => {
+    it('calls onLoadFile with the picked file', async () => {
+      const user = userEvent.setup();
+      const { onLoadFile } = renderEditor();
+      const file = new File(['G21\nG90'], 'part.nc', { type: 'text/plain' });
+      const input = screen.getByLabelText('Upload G-code file').parentElement!.querySelector('input[type="file"]') as HTMLInputElement;
+      await user.upload(input, file);
+      expect(onLoadFile).toHaveBeenCalledWith(file);
+    });
+
+    it('calls onSaveFile when the Save button is clicked', async () => {
+      const user = userEvent.setup();
+      const { onSaveFile } = renderEditor();
+      await user.click(screen.getByLabelText('Save G-code file'));
+      expect(onSaveFile).toHaveBeenCalledTimes(1);
+    });
+
+    it('disables the Upload button while cutting is locked, but not Save', () => {
+      renderEditor(0, {}, true);
+      expect(screen.getByLabelText('Upload G-code file')).toBeDisabled();
+      expect(screen.getByLabelText('Save G-code file')).not.toBeDisabled();
+    });
   });
 
   describe('Execution Modifiers', () => {
@@ -153,6 +194,10 @@ describe('Editor', () => {
           execModifiers={{ ...DEFAULT_EXECUTION_MODIFIERS, blockSkip: false }}
           onExecModifiersChange={vi.fn()}
           isCuttingLocked={false}
+          programName={PROGRAM_FILE_NAME}
+          programSource="demo"
+          onLoadFile={vi.fn()}
+          onSaveFile={vi.fn()}
         />
       );
       expect(screen.queryByText('skipped')).not.toBeInTheDocument();
@@ -164,6 +209,10 @@ describe('Editor', () => {
           execModifiers={{ ...DEFAULT_EXECUTION_MODIFIERS, blockSkip: true }}
           onExecModifiersChange={vi.fn()}
           isCuttingLocked={false}
+          programName={PROGRAM_FILE_NAME}
+          programSource="demo"
+          onLoadFile={vi.fn()}
+          onSaveFile={vi.fn()}
         />
       );
       expect(screen.getByText('skipped')).toBeInTheDocument();

@@ -1,7 +1,7 @@
 
-import React from 'react';
-import { GCodeLine, ExecutionModifiers } from '../types';
-import { CAM_SOURCE_INFO, MACHINE_CONTROL_NAME, PROGRAM_FILE_NAME } from '../constants';
+import React, { useRef } from 'react';
+import { GCodeLine, ExecutionModifiers, ProgramSource } from '../types';
+import { CAM_SOURCE_INFO, MACHINE_CONTROL_NAME } from '../constants';
 import InfoTooltip from './InfoTooltip';
 
 interface EditorProps {
@@ -13,6 +13,17 @@ interface EditorProps {
    * memo), so their toggles lock while simulating; singleBlock/optionalStop
    * only affect the pacing effect's runtime behavior and stay live. */
   isCuttingLocked: boolean;
+  /** Name of the currently loaded program -- either the app's built-in demo
+   * (PROGRAM_FILE_NAME) or a real uploaded file's name. */
+  programName: string;
+  /** 'demo' shows the illustrative CAM System/Post-Processor metadata below;
+   * 'upload' honestly says that metadata isn't known for a real file. */
+  programSource: ProgramSource;
+  /** Reads the picked File and hands it to App.tsx's loader (parses +
+   * replaces the running program). */
+  onLoadFile: (file: File) => void;
+  /** Serializes the current program back to G-code text and downloads it. */
+  onSaveFile: () => void;
 }
 
 const MODIFIER_TOGGLES: { key: keyof ExecutionModifiers; label: string; locksWhileCutting: boolean }[] = [
@@ -22,12 +33,17 @@ const MODIFIER_TOGGLES: { key: keyof ExecutionModifiers; label: string; locksWhi
   { key: 'blockSkip',    label: 'BLK SKIP', locksWhileCutting: true  },
 ];
 
-const Editor: React.FC<EditorProps> = ({ lines, activeLineIndex, execModifiers, onExecModifiersChange, isCuttingLocked }) => {
+const Editor: React.FC<EditorProps> = ({
+  lines, activeLineIndex, execModifiers, onExecModifiersChange, isCuttingLocked,
+  programName, programSource, onLoadFile, onSaveFile,
+}) => {
   // Units check is derived from the actual program, not asserted separately
   // -- if line 001 ever stopped being a G21/G20, this would say so instead
   // of silently repeating a hardcoded "Metric" claim.
   const unitsLine = lines.find(l => l.command === 'G21' || l.command === 'G20');
   const unitsLabel = unitsLine ? (unitsLine.command === 'G21' ? 'Metric (mm)' : 'Imperial (in)') : 'Unspecified';
+  const isDemoProgram = programSource === 'demo';
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <aside className="flex-1 flex flex-col bg-cds-bg overflow-hidden">
@@ -38,10 +54,31 @@ const Editor: React.FC<EditorProps> = ({ lines, activeLineIndex, execModifiers, 
           G-Code Editor
         </h2>
         <div className="flex gap-1">
-          <button className="size-11 flex items-center justify-center hover:text-cds-text-01 text-cds-text-03 transition-colors" aria-label="Upload G-code file">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".nc,.gcode,.tap,.cnc,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onLoadFile(file);
+              // Reset so picking the same filename again still fires onChange.
+              e.target.value = '';
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isCuttingLocked}
+            className="size-11 flex items-center justify-center hover:text-cds-text-01 text-cds-text-03 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-cds-text-03"
+            aria-label="Upload G-code file"
+          >
             <span className="material-symbols-outlined text-sm" aria-hidden="true">upload_file</span>
           </button>
-          <button className="size-11 flex items-center justify-center hover:text-cds-text-01 text-cds-text-03 transition-colors" aria-label="Save G-code file">
+          <button
+            onClick={onSaveFile}
+            className="size-11 flex items-center justify-center hover:text-cds-text-01 text-cds-text-03 transition-colors"
+            aria-label="Save G-code file"
+          >
             <span className="material-symbols-outlined text-sm" aria-hidden="true">save</span>
           </button>
         </div>
@@ -122,14 +159,20 @@ const Editor: React.FC<EditorProps> = ({ lines, activeLineIndex, execModifiers, 
       <div className="h-8 bg-cds-layer-01 border-t border-cds-border flex items-center px-4 justify-between text-[10px] text-cds-text-04 font-mono uppercase shrink-0">
         <span>Total Lines: {lines.length}</span>
         <span className="flex items-center gap-1.5 normal-case">
-          Source: {CAM_SOURCE_INFO.postProcessor}
+          Source: {isDemoProgram ? CAM_SOURCE_INFO.postProcessor : 'User Upload'}
           <InfoTooltip>
             <dl className="space-y-2">
-              <div><dt className="text-cds-text-04">CAM System</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.camSystem}</dd></div>
-              <div><dt className="text-cds-text-04">Post-Processor</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.postProcessor}</dd></div>
+              <div><dt className="text-cds-text-04">Program</dt><dd className="text-cds-text-01">{programName}</dd></div>
               <div><dt className="text-cds-text-04">Target Control</dt><dd className="text-cds-text-01">{MACHINE_CONTROL_NAME}</dd></div>
-              <div><dt className="text-cds-text-04">Program</dt><dd className="text-cds-text-01">{PROGRAM_FILE_NAME}</dd></div>
-              <div><dt className="text-cds-text-04">Generated</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.generatedAt}</dd></div>
+              {isDemoProgram ? (
+                <>
+                  <div><dt className="text-cds-text-04">CAM System</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.camSystem}</dd></div>
+                  <div><dt className="text-cds-text-04">Post-Processor</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.postProcessor}</dd></div>
+                  <div><dt className="text-cds-text-04">Generated</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.generatedAt}</dd></div>
+                </>
+              ) : (
+                <div><dt className="text-cds-text-04">CAM System</dt><dd className="text-cds-text-01">Unknown -- user-uploaded file</dd></div>
+              )}
               <div><dt className="text-cds-text-04">Units</dt><dd className="text-cds-text-01">{unitsLabel}{unitsLine ? ` (line ${unitsLine.lineNum})` : ''}</dd></div>
             </dl>
           </InfoTooltip>

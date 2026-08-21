@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { OeeCounters } from '../types';
-import { PROGRAM_FILE_NAME, MACHINE_CONTROL_NAME } from '../constants';
+import { MACHINE_CONTROL_NAME } from '../constants';
 
 type FleetStatus = 'RUNNING' | 'IDLE' | 'ALARM' | 'OFFLINE';
 
@@ -105,6 +105,7 @@ interface FleetViewProps {
     hasActiveAlarm: boolean;
     completionPercent: number;
     activeLineLabel: string;
+    programName: string;
   };
   /** OEE inputs -- all real, session-tracked App state (see App.tsx's oee/
    * sessionElapsedMs/downtimeMs). FleetView derives Availability/
@@ -125,7 +126,7 @@ const FleetView: React.FC<FleetViewProps> = ({ onClose, liveMachine, productionM
       id: 'MACHINE_01',
       model: MACHINE_CONTROL_NAME,
       status: liveStatus,
-      job: PROGRAM_FILE_NAME,
+      job: liveMachine.programName,
       completionPercent: Math.round(liveMachine.completionPercent),
       detail: liveMachine.hasActiveAlarm
         ? 'Active alarm -- see System Logs for detail'

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import App from './App';
 
 function completionPercent(): number {
@@ -908,6 +908,99 @@ describe('Collision/Gouge Report', () => {
     fireEvent.click(screen.getByLabelText('Close Collision/Gouge Report'));
     expect(screen.queryByText('COLLISION / GOUGE REPORT')).not.toBeInTheDocument();
     expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
+  });
+});
+
+describe('G-Code File Loading', () => {
+  function uploadFile(text: string, filename = 'my_part.nc') {
+    const file = new File([text], filename, { type: 'text/plain' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    return file;
+  }
+
+  it("shows the built-in demo program's line count on first render", () => {
+    render(<App />);
+    expect(screen.getByText('Total Lines: 15')).toBeInTheDocument();
+  });
+
+  it('replaces the running program when a valid file is uploaded via the Editor toolbar', async () => {
+    render(<App />);
+    uploadFile('G21\nG90\nG00 X0 Y0 Z10\nM30', 'my_part.nc');
+    await waitFor(() => expect(screen.getByText('Total Lines: 4')).toBeInTheDocument());
+    expect(screen.getByText(/Loaded "my_part\.nc" \(4 lines\)/)).toBeInTheDocument();
+  });
+
+  it('resets machine position/progress when a new program is loaded', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByLabelText('Zero Z axis (set current position as work zero)'));
+    uploadFile('G21\nG90\nM30', 'reset_check.nc');
+    await waitFor(() => expect(screen.getByText('Total Lines: 3')).toBeInTheDocument());
+    expect(screen.getByText(/System Reset\. Returning to program start\./)).toBeInTheDocument();
+  });
+
+  it('rejects an empty/invalid file and keeps the previous program loaded', async () => {
+    render(<App />);
+    uploadFile('   \n\n(just a comment)', 'blank.nc');
+    await waitFor(() => expect(screen.getByText(/Failed to load "blank\.nc"/)).toBeInTheDocument());
+    expect(screen.getByText('Total Lines: 15')).toBeInTheDocument();
+  });
+
+  it('shows the "User Upload" honesty label in the CAM Source tooltip after loading a real file', async () => {
+    render(<App />);
+    uploadFile('G21\nM30', 'real.nc');
+    await waitFor(() => expect(screen.getByText('Total Lines: 2')).toBeInTheDocument());
+    expect(screen.getByText(/User Upload/)).toBeInTheDocument();
+  });
+
+  it('disables the Editor Upload button while the machine is running', () => {
+    vi.useFakeTimers();
+    try {
+      render(<App />);
+      clickCycleStartAndWaitForLoading();
+      expect(screen.getByLabelText('Upload G-code file')).toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("imports a file through File Manager's Import G-Code tab and replaces the program", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('File'));
+    fireEvent.click(screen.getByText('IMPORT G-CODE'));
+    const file = new File(['G21\nG90\nM30'], 'via_file_manager.nc', { type: 'text/plain' });
+    const input = screen.getByText('BROWSE FILES').parentElement!.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(screen.queryByText('FILE SYSTEM MANAGER')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Total Lines: 3')).toBeInTheDocument());
+  });
+
+  it('serializes and downloads the current program when Save is clicked', () => {
+    const createObjectURL = vi.fn(() => 'blob:mock-url');
+    const revokeObjectURL = vi.fn();
+    const originalCreateObjectURL = (URL as unknown as { createObjectURL?: typeof createObjectURL }).createObjectURL;
+    const originalRevokeObjectURL = (URL as unknown as { revokeObjectURL?: typeof revokeObjectURL }).revokeObjectURL;
+    (URL as unknown as { createObjectURL: typeof createObjectURL }).createObjectURL = createObjectURL;
+    (URL as unknown as { revokeObjectURL: typeof revokeObjectURL }).revokeObjectURL = revokeObjectURL;
+    let downloadedFilename = '';
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloadedFilename = this.download;
+    });
+
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByLabelText('Save G-code file'));
+
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+      expect(downloadedFilename).toBe('PROJECT_ALPHA_V2.NC');
+      expect(screen.getByText(/Saved "PROJECT_ALPHA_V2\.NC" \(15 lines\)/)).toBeInTheDocument();
+    } finally {
+      clickSpy.mockRestore();
+      (URL as unknown as { createObjectURL?: typeof createObjectURL }).createObjectURL = originalCreateObjectURL;
+      (URL as unknown as { revokeObjectURL?: typeof revokeObjectURL }).revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 });
 

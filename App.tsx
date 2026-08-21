@@ -16,9 +16,10 @@ import FleetView from './components/FleetView';
 import JobQueue from './components/JobQueue';
 import CollisionReport from './components/CollisionReport';
 import ProbingWizard from './components/ProbingWizard';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters, Job, AccentTheme } from './types';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters, Job, AccentTheme, GCodeLine, ProgramSource } from './types';
 import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS, DEFAULT_JOB_QUEUE, DEFAULT_PROBE_TIP_DIAMETER_MM, PROGRAM_FILE_NAME, DEFAULT_ACCENT_THEME, DEFAULT_UI_SCALE_PERCENT } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
+import { parseGCodeFile, serializeGCodeFile } from './lib/gcode/fileIO';
 import { analyzeCollisionRisk } from './lib/gcode/collisionCheck';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
 import { MACHINE_SPEC } from './lib/machine/spec';
@@ -34,6 +35,18 @@ const App: React.FC = () => {
     progress: 0,
     activeLineIndex: 0,
     coolant: false,
+  });
+  // The loaded program (Editor/Viewport/AiAssistant/timeline all read
+  // `programFile.lines`, not the INITIAL_GCODE constant directly) -- starts
+  // as the app's built-in demo, replaced wholesale by handleLoadGCodeFile
+  // when the operator uploads a real file via Editor's Upload button or File
+  // Manager's Import G-Code tab. Bundling name/lines/source in one object
+  // (rather than three separate useState calls) keeps them from ever
+  // drifting out of sync with each other.
+  const [programFile, setProgramFile] = useState<{ name: string; lines: GCodeLine[]; source: ProgramSource }>({
+    name: PROGRAM_FILE_NAME,
+    lines: INITIAL_GCODE,
+    source: 'demo',
   });
 
   // UI State
@@ -169,7 +182,7 @@ const App: React.FC = () => {
       const newJob: Job = {
         id: Math.random().toString(36).substr(2, 9),
         partName,
-        programName: PROGRAM_FILE_NAME,
+        programName: programFile.name,
         quantity,
         completedQty: 0,
         scrappedQty: 0,
@@ -177,7 +190,7 @@ const App: React.FC = () => {
       };
       return [...prev, newJob];
     });
-  }, []);
+  }, [programFile.name]);
   const removeJob = useCallback((id: string) => {
     // Active job can't be removed via this action (it's on the machine right
     // now) -- JobQueue.tsx also disables the button, this is defense-in-depth.
@@ -304,16 +317,16 @@ const App: React.FC = () => {
   // the timeline's shape); Editor.tsx locks both while simulating, so this
   // never reshapes the timeline out from under an in-progress run.
   const gcodeTimeline = useMemo(
-    () => computeGCodeTimeline(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200, 30000, {
+    () => computeGCodeTimeline(programFile.lines, { x: 0, y: 0, z: 10 }, 1200, 30000, {
       dryRun: execModifiers.dryRun,
       skipFlaggedBlocks: execModifiers.blockSkip,
     }),
-    [execModifiers.dryRun, execModifiers.blockSkip]
+    [programFile.lines, execModifiers.dryRun, execModifiers.blockSkip]
   );
 
   const programSummary = useMemo(
-    () => summarizeProgram(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200),
-    []
+    () => summarizeProgram(programFile.lines, { x: 0, y: 0, z: 10 }, 1200),
+    [programFile.lines]
   );
 
   // Collision/Gouge Report (CollisionReport.tsx): static verification of the
@@ -321,8 +334,8 @@ const App: React.FC = () => {
   // whenever `tools` changes, since that's the only thing (Tool Offset
   // Table: diameter offset, life count) that can actually move a finding.
   const collisionReport = useMemo(
-    () => analyzeCollisionRisk(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, tools[0]),
-    [tools]
+    () => analyzeCollisionRisk(programFile.lines, { x: 0, y: 0, z: 10 }, tools[0]),
+    [programFile.lines, tools]
   );
 
   // Movement Logic
@@ -601,6 +614,49 @@ const App: React.FC = () => {
     addLog("System Reset. Returning to program start.", "info");
   }, [addLog, status.progress, recordJobOutcome]);
 
+  // Editor's Upload button and File Manager's Import G-Code tab both funnel
+  // through here. Blocked while actually running (not just paused) --
+  // swapping the program out from under an in-progress cut would desync the
+  // timeline mid-animation; Feed Hold or Reset first, same as the locks
+  // Editor already applies to Dry Run/Block Skip. Reuses handleReset so a
+  // mid-run load correctly counts as an aborted/scrapped part for OEE,
+  // exactly like a manual Reset would.
+  const handleLoadGCodeFile = useCallback((file: File) => {
+    if (status.isSimulating) {
+      addLog('Cannot load a new program while the machine is running. Feed Hold first.', 'warn');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : '';
+      const parsedLines = parseGCodeFile(text);
+      if (parsedLines.length === 0) {
+        addLog(`Failed to load "${file.name}": no recognizable G-code lines found.`, 'error');
+        return;
+      }
+      setProgramFile({ name: file.name, lines: parsedLines, source: 'upload' });
+      handleReset();
+      addLog(`Loaded "${file.name}" (${parsedLines.length} lines).`, 'success');
+    };
+    reader.onerror = () => addLog(`Failed to read "${file.name}".`, 'error');
+    reader.readAsText(file);
+  }, [status.isSimulating, addLog, handleReset]);
+
+  const handleSaveGCodeFile = useCallback(() => {
+    const text = serializeGCodeFile(programFile.lines);
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const filename = /\.\w+$/.test(programFile.name) ? programFile.name : `${programFile.name}.nc`;
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    addLog(`Saved "${filename}" (${programFile.lines.length} lines).`, 'success');
+  }, [programFile, addLog]);
+
   const toggleEditMenu = () => {
     setIsEditMenuOpen(!isEditMenuOpen);
     if (!isEditMenuOpen) setIsViewMenuOpen(false);
@@ -643,11 +699,15 @@ const App: React.FC = () => {
           style={{ width: `${leftWidth}px` }}
         >
            <Editor
-            lines={INITIAL_GCODE}
+            lines={programFile.lines}
             activeLineIndex={activeLineIndex}
             execModifiers={execModifiers}
             onExecModifiersChange={updateExecModifiers}
             isCuttingLocked={status.isSimulating || isCycleLoadingOpen}
+            programName={programFile.name}
+            programSource={programFile.source}
+            onLoadFile={handleLoadGCodeFile}
+            onSaveFile={handleSaveGCodeFile}
           />
           {/* Vertical Resizer */}
           <div
@@ -669,11 +729,11 @@ const App: React.FC = () => {
             isSimulating={status.isSimulating}
             progress={status.progress}
             coords={coords}
-            lines={INITIAL_GCODE}
+            lines={programFile.lines}
             totalDurationMs={programSummary.totalDurationMs}
             viewSettings={viewSettings}
           />
-          <AiAssistant currentGCode={INITIAL_GCODE} />
+          <AiAssistant currentGCode={programFile.lines} />
         </div>
 
         {/* Resizer Right */}
@@ -735,7 +795,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Overlays */}
-      {isFileMenuOpen && <FileManager onClose={() => setIsFileMenuOpen(false)} />}
+      {isFileMenuOpen && <FileManager onClose={() => setIsFileMenuOpen(false)} onImportFile={handleLoadGCodeFile} />}
       {isHelpMenuOpen && <HelpManager onClose={() => setIsHelpMenuOpen(false)} alarms={alarms} initialTab={helpInitialTab} />}
       {isSettingsOpen && (
         <SettingsManager
@@ -753,7 +813,8 @@ const App: React.FC = () => {
             isSimulating: status.isSimulating,
             hasActiveAlarm,
             completionPercent: status.progress,
-            activeLineLabel: `line ${INITIAL_GCODE[status.activeLineIndex]?.lineNum ?? '001'} (${INITIAL_GCODE[status.activeLineIndex]?.command ?? 'G21'})`,
+            activeLineLabel: `line ${programFile.lines[status.activeLineIndex]?.lineNum ?? '001'} (${programFile.lines[status.activeLineIndex]?.command ?? 'G21'})`,
+            programName: programFile.name,
           }}
           productionMetrics={{
             oee,

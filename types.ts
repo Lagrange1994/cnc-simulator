@@ -17,6 +17,13 @@ export interface GCodeLine {
   blockSkip?: boolean;
 }
 
+/** 'demo' is the app's built-in illustrative program (INITIAL_GCODE); 'upload'
+ * is a real file the operator loaded via Editor's Upload button or File
+ * Manager's Import G-Code tab. Drives whether the Editor status bar's CAM
+ * Source tooltip shows the illustrative post-processor metadata or honestly
+ * says it has none for a real uploaded file. */
+export type ProgramSource = 'demo' | 'upload';
+
 /** Program execution modifiers -- the standard toggle bank next to Cycle
  * Start on every commercial control, separate from Feed/Spindle Override
  * (Overrides) because these change *what* runs, not how fast.

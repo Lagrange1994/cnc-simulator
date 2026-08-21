@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 interface FileCardProps {
   title: string;
@@ -41,10 +41,23 @@ const FileCard: React.FC<FileCardProps> = ({ title, edited, machine, time, thumb
 
 interface FileManagerProps {
   onClose: () => void;
+  /** Reads a real G-code file and replaces the running program (App.tsx's
+   * handleLoadGCodeFile) -- the only functional action in this panel; the
+   * rest (Recent Work catalog, Cloud Drive, System Templates) is decorative
+   * demo-workspace chrome, unrelated to real files on disk. */
+  onImportFile: (file: File) => void;
 }
 
-const FileManager: React.FC<FileManagerProps> = ({ onClose }) => {
+const FileManager: React.FC<FileManagerProps> = ({ onClose, onImportFile }) => {
   const [activeTab, setActiveTab] = useState('Recent Work');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = (file: File | null | undefined) => {
+    if (!file) return;
+    onImportFile(file);
+    onClose();
+  };
 
   const menuItems = [
     { id: 'Open Project',      icon: 'folder_open'  },
@@ -160,6 +173,40 @@ const FileManager: React.FC<FileManagerProps> = ({ onClose }) => {
                     </div>
                     <span className="mt-4 text-[10px] font-semibold text-cds-text-04 uppercase tracking-[0.2em] group-hover:text-cds-interactive transition-colors">Initialize Local Project</span>
                   </div>
+                </div>
+              </div>
+            ) : activeTab === 'Import G-Code' ? (
+              <div
+                className="flex-1 flex items-center justify-center p-20"
+                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(false);
+                  handleImport(e.dataTransfer.files?.[0]);
+                }}
+              >
+                <div className={`max-w-md w-full border-2 border-dashed chamfer-md p-12 flex flex-col items-center text-center transition-colors ${
+                  isDragOver ? 'border-cds-interactive bg-cds-interactive/5' : 'border-cds-border/40'
+                }`}>
+                  <span className="material-symbols-outlined text-5xl text-cds-interactive mb-4">note_add</span>
+                  <h3 className="text-cds-text-01 font-semibold text-body-sm uppercase tracking-widest mb-2">Import G-Code</h3>
+                  <p className="text-[10px] text-cds-text-04 font-mono uppercase tracking-wider mb-6">
+                    Drag &amp; drop a .NC / .gcode / .tap file here, or browse
+                  </p>
+                  <button
+                    onClick={() => importInputRef.current?.click()}
+                    className="h-11 px-6 bg-cds-interactive hover:bg-cds-link text-white font-semibold text-[10px] tracking-[0.2em] chamfer-sm transition-all shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.2)]"
+                  >
+                    BROWSE FILES
+                  </button>
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".nc,.gcode,.tap,.cnc,.txt"
+                    className="hidden"
+                    onChange={(e) => handleImport(e.target.files?.[0])}
+                  />
                 </div>
               </div>
             ) : (
