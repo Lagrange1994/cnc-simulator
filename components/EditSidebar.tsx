@@ -1,14 +1,21 @@
 
-import React, { useState } from 'react';
-import { Tool } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Tool, GCodeLine } from '../types';
+import { findMatchingLines, findLineByNumber } from '../lib/gcode/search';
 
 interface EditSidebarProps {
   onClose: () => void;
   tools: Tool[];
   onUpdateTool: (id: string, patch: Partial<Tool>) => void;
+  /** The currently loaded program -- Find/Goto search this, not a fixed
+   * demo list, so both work correctly after a real file is uploaded. */
+  lines: GCodeLine[];
+  /** Tells App.tsx which line Editor.tsx should scroll to and ring-highlight.
+   * null clears the highlight (e.g. closing Find/Goto or the whole panel). */
+  onHighlightLine: (lineId: string | null) => void;
 }
 
-const EditSidebar: React.FC<EditSidebarProps> = ({ onClose, tools, onUpdateTool }) => {
+const EditSidebar: React.FC<EditSidebarProps> = ({ onClose, tools, onUpdateTool, lines, onHighlightLine }) => {
   const [expandedSections, setExpandedSections] = useState({
     toolOffsets: true,
     tools: true,
@@ -18,6 +25,64 @@ const EditSidebar: React.FC<EditSidebarProps> = ({ onClose, tools, onUpdateTool 
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  // Quick Search & Nav -- Find and Goto are real (search/jump within the
+  // loaded program); Replace stays disabled since nothing in this app can
+  // actually edit a G-code line yet (Editor.tsx is a read-only viewer).
+  const [activePanel, setActivePanel] = useState<'find' | 'goto' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [matchIndex, setMatchIndex] = useState(0);
+  const [gotoValue, setGotoValue] = useState('');
+  const [gotoError, setGotoError] = useState<string | null>(null);
+
+  const matches = useMemo(() => findMatchingLines(lines, searchQuery), [lines, searchQuery]);
+
+  // Re-clamp and re-highlight whenever the match set changes (typing, or the
+  // loaded program itself changing out from under an open search).
+  useEffect(() => {
+    if (matches.length === 0) {
+      onHighlightLine(null);
+      return;
+    }
+    const clamped = matchIndex >= matches.length ? 0 : matchIndex;
+    if (clamped !== matchIndex) setMatchIndex(clamped);
+    onHighlightLine(matches[clamped].id);
+  }, [matches, matchIndex, onHighlightLine]);
+
+  // Any change of panel -- opening one, closing it, or switching straight
+  // from Find to Goto -- starts that panel fresh rather than carrying over
+  // the previous panel's query/highlight.
+  useEffect(() => {
+    setSearchQuery('');
+    setMatchIndex(0);
+    setGotoValue('');
+    setGotoError(null);
+    onHighlightLine(null);
+  }, [activePanel, onHighlightLine]);
+
+  const togglePanel = (panel: 'find' | 'goto') => {
+    setActivePanel(prev => (prev === panel ? null : panel));
+  };
+
+  const goToNextMatch = () => {
+    if (matches.length === 0) return;
+    setMatchIndex(prev => (prev + 1) % matches.length);
+  };
+  const goToPrevMatch = () => {
+    if (matches.length === 0) return;
+    setMatchIndex(prev => (prev - 1 + matches.length) % matches.length);
+  };
+
+  const runGoto = () => {
+    const target = findLineByNumber(lines, gotoValue);
+    if (!target) {
+      setGotoError(`Line "${gotoValue.trim()}" not found.`);
+      onHighlightLine(null);
+      return;
+    }
+    setGotoError(null);
+    onHighlightLine(target.id);
   };
 
   return (
@@ -53,17 +118,103 @@ const EditSidebar: React.FC<EditSidebarProps> = ({ onClose, tools, onUpdateTool 
         <div className="p-6 pb-4">
           <h3 className="text-[10px] font-semibold text-cds-text-03 uppercase tracking-widest mb-3">Quick Search & Nav</h3>
           <div className="flex gap-2">
-            {[
-              { icon: 'search', label: 'FIND' },
-              { icon: 'find_replace', label: 'REPLACE' },
-              { icon: 'shortcut', label: 'GOTO' },
-            ].map(({ icon, label }) => (
-              <button key={label} className="flex-1 aspect-square max-h-12 relative chamfer-sm chamfer-border bg-cds-border before:bg-cds-layer-02 hover:before:bg-cds-layer-03 flex flex-col items-center justify-center gap-1 transition-all group">
-                <span className={`material-symbols-outlined text-sm text-cds-text-03 group-hover:text-cds-interactive`}>{icon}</span>
-                <span className="text-[8px] font-semibold text-cds-text-04">{label}</span>
-              </button>
-            ))}
+            <button
+              onClick={() => togglePanel('find')}
+              aria-pressed={activePanel === 'find'}
+              className={`flex-1 aspect-square max-h-12 relative chamfer-sm chamfer-border flex flex-col items-center justify-center gap-1 transition-all group ${
+                activePanel === 'find'
+                  ? 'bg-cds-interactive/40 before:bg-cds-interactive/10 text-cds-interactive'
+                  : 'bg-cds-border before:bg-cds-layer-02 hover:before:bg-cds-layer-03 text-cds-text-03'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-sm ${activePanel === 'find' ? 'text-cds-interactive' : 'text-cds-text-03 group-hover:text-cds-interactive'}`}>search</span>
+              <span className="text-[8px] font-semibold text-cds-text-04">FIND</span>
+            </button>
+            <button
+              disabled
+              title="Replace requires editable G-code -- this app's Editor is view-only."
+              className="flex-1 aspect-square max-h-12 relative chamfer-sm chamfer-border bg-cds-border before:bg-cds-layer-02 flex flex-col items-center justify-center gap-1 opacity-40 cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-sm text-cds-text-03">find_replace</span>
+              <span className="text-[8px] font-semibold text-cds-text-04">REPLACE</span>
+            </button>
+            <button
+              onClick={() => togglePanel('goto')}
+              aria-pressed={activePanel === 'goto'}
+              className={`flex-1 aspect-square max-h-12 relative chamfer-sm chamfer-border flex flex-col items-center justify-center gap-1 transition-all group ${
+                activePanel === 'goto'
+                  ? 'bg-cds-interactive/40 before:bg-cds-interactive/10 text-cds-interactive'
+                  : 'bg-cds-border before:bg-cds-layer-02 hover:before:bg-cds-layer-03 text-cds-text-03'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-sm ${activePanel === 'goto' ? 'text-cds-interactive' : 'text-cds-text-03 group-hover:text-cds-interactive'}`}>shortcut</span>
+              <span className="text-[8px] font-semibold text-cds-text-04">GOTO</span>
+            </button>
           </div>
+
+          {activePanel === 'find' && (
+            <div className="mt-3 space-y-2 animate-in slide-in-from-top-2 duration-200">
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') goToNextMatch(); }}
+                placeholder="Search command, params, comment..."
+                aria-label="Find in G-code"
+                className="w-full h-9 bg-black/40 border border-cds-border/30 px-3 text-[11px] font-mono text-cds-text-01 outline-none focus:border-cds-interactive/50"
+              />
+              {searchQuery.trim() !== '' && (
+                <div className="flex items-center justify-between text-[10px] text-cds-text-04 font-mono">
+                  <span>{matches.length === 0 ? 'No matches' : `${matchIndex + 1} of ${matches.length}`}</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={goToPrevMatch}
+                      disabled={matches.length === 0}
+                      aria-label="Previous match"
+                      className="size-7 flex items-center justify-center bg-black/20 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <span className="material-symbols-outlined text-sm">expand_less</span>
+                    </button>
+                    <button
+                      onClick={goToNextMatch}
+                      disabled={matches.length === 0}
+                      aria-label="Next match"
+                      className="size-7 flex items-center justify-center bg-black/20 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <span className="material-symbols-outlined text-sm">expand_more</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activePanel === 'goto' && (
+            <div className="mt-3 animate-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  value={gotoValue}
+                  onChange={(e) => setGotoValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') runGoto(); }}
+                  placeholder="Line #"
+                  aria-label="Go to line number"
+                  className="flex-1 h-9 bg-black/40 border border-cds-border/30 px-3 text-[11px] font-mono text-cds-text-01 outline-none focus:border-cds-interactive/50"
+                />
+                <button
+                  onClick={runGoto}
+                  aria-label="Go to line"
+                  className="h-9 px-4 relative chamfer-sm chamfer-border bg-cds-interactive/30 before:bg-cds-interactive/10 hover:before:bg-cds-interactive/20 text-cds-interactive text-[9px] font-semibold tracking-[0.2em] transition-all"
+                >
+                  GO
+                </button>
+              </div>
+              {gotoError && <p className="text-[10px] text-cds-error mt-1.5">{gotoError}</p>}
+            </div>
+          )}
         </div>
 
         {/* Tool Offset Table -- H/D geometry offsets and tool-life tracking,

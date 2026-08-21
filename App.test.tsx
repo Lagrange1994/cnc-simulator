@@ -433,6 +433,58 @@ describe('Tool Offset Table', () => {
   });
 });
 
+describe('Find/Goto in G-Code Editor (EditSidebar Quick Search & Nav)', () => {
+  it('Goto scrolls to and ring-highlights the target line in the Editor', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByRole('button', { name: /GOTO/ }));
+    fireEvent.change(screen.getByLabelText('Go to line number'), { target: { value: '5' } });
+    fireEvent.click(screen.getByLabelText('Go to line'));
+
+    const row = screen.getByText('X0 Y0 Z10').closest('tr'); // line 005
+    expect(row?.className).toContain('ring-cds-warning');
+  });
+
+  it('Find highlights the first match live as the query is typed', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByRole('button', { name: /FIND/ }));
+    fireEvent.change(screen.getByLabelText('Find in G-code'), { target: { value: 'Tool Change' } });
+
+    const row = screen.getByText(/Tool Change/).closest('tr'); // line 003
+    expect(row?.className).toContain('ring-cds-warning');
+  });
+
+  it('closing the Edit panel clears the highlight', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByRole('button', { name: /GOTO/ }));
+    fireEvent.change(screen.getByLabelText('Go to line number'), { target: { value: '5' } });
+    fireEvent.click(screen.getByLabelText('Go to line'));
+    fireEvent.click(screen.getByRole('button', { name: 'close' }));
+
+    const row = screen.getByText('X0 Y0 Z10').closest('tr');
+    expect(row?.className).not.toContain('ring-cds-warning');
+  });
+
+  it('Find/Goto search the currently loaded program, not a fixed demo list', async () => {
+    render(<App />);
+    const file = new File(['G21\nG90\nM30'], 'search_target.nc', { type: 'text/plain' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Total Lines: 3')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByRole('button', { name: /GOTO/ }));
+    fireEvent.change(screen.getByLabelText('Go to line number'), { target: { value: '2' } });
+    fireEvent.click(screen.getByLabelText('Go to line'));
+
+    // Uploaded line 002 is a bare G90 with no comment/params.
+    const row = screen.getByText('G90').closest('tr');
+    expect(row?.className).toContain('ring-cds-warning');
+  });
+});
+
 describe('Program Execution Modifiers', () => {
   beforeEach(() => {
     vi.useFakeTimers();

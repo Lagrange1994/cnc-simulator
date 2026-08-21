@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { GCodeLine, ExecutionModifiers, ProgramSource } from '../types';
 import { CAM_SOURCE_INFO, MACHINE_CONTROL_NAME } from '../constants';
 import InfoTooltip from './InfoTooltip';
@@ -24,6 +24,9 @@ interface EditorProps {
   onLoadFile: (file: File) => void;
   /** Serializes the current program back to G-code text and downloads it. */
   onSaveFile: () => void;
+  /** Line id EditSidebar's Find/Goto jumped to -- scrolled into view and
+   * ring-highlighted below. null/undefined means nothing to highlight. */
+  highlightedLineId?: string | null;
 }
 
 const MODIFIER_TOGGLES: { key: keyof ExecutionModifiers; label: string; locksWhileCutting: boolean }[] = [
@@ -35,7 +38,7 @@ const MODIFIER_TOGGLES: { key: keyof ExecutionModifiers; label: string; locksWhi
 
 const Editor: React.FC<EditorProps> = ({
   lines, activeLineIndex, execModifiers, onExecModifiersChange, isCuttingLocked,
-  programName, programSource, onLoadFile, onSaveFile,
+  programName, programSource, onLoadFile, onSaveFile, highlightedLineId,
 }) => {
   // Units check is derived from the actual program, not asserted separately
   // -- if line 001 ever stopped being a G21/G20, this would say so instead
@@ -44,6 +47,11 @@ const Editor: React.FC<EditorProps> = ({
   const unitsLabel = unitsLine ? (unitsLine.command === 'G21' ? 'Metric (mm)' : 'Imperial (in)') : 'Unspecified';
   const isDemoProgram = programSource === 'demo';
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!highlightedLineId) return;
+    document.getElementById(`gcode-line-${highlightedLineId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightedLineId]);
 
   return (
     <aside className="flex-1 flex flex-col bg-cds-bg overflow-hidden">
@@ -121,10 +129,12 @@ const Editor: React.FC<EditorProps> = ({
             {lines.map((line, index) => {
               const isActive = index === activeLineIndex;
               const isBypassed = !!line.blockSkip && execModifiers.blockSkip;
+              const isHighlighted = line.id === highlightedLineId;
               return (
                 <tr
                   key={line.id}
-                  className={`${isActive ? 'bg-cds-layer-02/50 text-cds-text-01' : 'text-cds-text-03 hover:bg-white/5'} ${isBypassed ? 'opacity-40' : ''} group relative`}
+                  id={`gcode-line-${line.id}`}
+                  className={`${isActive ? 'bg-cds-layer-02/50 text-cds-text-01' : 'text-cds-text-03 hover:bg-white/5'} ${isBypassed ? 'opacity-40' : ''} ${isHighlighted ? 'ring-2 ring-inset ring-cds-warning' : ''} group relative`}
                 >
                   {/* Line number gutter – Carbon $layer-01 */}
                   <td className={`text-right pr-3 py-1.5 text-label select-none border-r border-cds-border/20 ${

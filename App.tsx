@@ -49,6 +49,13 @@ const App: React.FC = () => {
     source: 'demo',
   });
 
+  // Find/Goto (EditSidebar's "Quick Search & Nav") -- which line Editor.tsx
+  // should scroll to and ring-highlight. Lives here, not in EditSidebar,
+  // because Editor and EditSidebar are sibling components; cleared whenever
+  // the Edit panel closes (see toggleEditMenu and the EditSidebar onClose
+  // below) so a stale highlight doesn't linger the next time it opens.
+  const [highlightedLineId, setHighlightedLineId] = useState<string | null>(null);
+
   // UI State
   const [isFileMenuOpen, setIsFileMenuOpen] = useState(false);
   const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
@@ -658,8 +665,10 @@ const App: React.FC = () => {
   }, [programFile, addLog]);
 
   const toggleEditMenu = () => {
-    setIsEditMenuOpen(!isEditMenuOpen);
-    if (!isEditMenuOpen) setIsViewMenuOpen(false);
+    const next = !isEditMenuOpen;
+    setIsEditMenuOpen(next);
+    if (next) setIsViewMenuOpen(false);
+    else setHighlightedLineId(null);
   };
 
   const toggleViewMenu = () => {
@@ -708,6 +717,7 @@ const App: React.FC = () => {
             programSource={programFile.source}
             onLoadFile={handleLoadGCodeFile}
             onSaveFile={handleSaveGCodeFile}
+            highlightedLineId={highlightedLineId}
           />
           {/* Vertical Resizer */}
           <div
@@ -771,7 +781,13 @@ const App: React.FC = () => {
 
         {/* Edit Menu Sidebar Overlay */}
         {isEditMenuOpen && (
-          <EditSidebar onClose={() => setIsEditMenuOpen(false)} tools={tools} onUpdateTool={updateTool} />
+          <EditSidebar
+            onClose={() => { setIsEditMenuOpen(false); setHighlightedLineId(null); }}
+            tools={tools}
+            onUpdateTool={updateTool}
+            lines={programFile.lines}
+            onHighlightLine={setHighlightedLineId}
+          />
         )}
 
         {/* View Menu Sidebar Overlay */}
