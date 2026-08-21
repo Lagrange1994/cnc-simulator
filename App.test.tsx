@@ -1021,3 +1021,51 @@ describe('Touch-Off Wizard', () => {
     expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
   });
 });
+
+describe('Appearance -- Accent Theme & UI Scale', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  function openSettings() {
+    fireEvent.click(screen.getByLabelText('System configuration'));
+  }
+
+  it('applies the default accent theme to <html> on mount, even before Settings is opened', () => {
+    render(<App />);
+    expect(document.documentElement.getAttribute('data-accent')).toBe('carbon-dark');
+  });
+
+  it('updates <html>[data-accent] live and persists it when a new theme is picked in Settings', () => {
+    render(<App />);
+    openSettings();
+    fireEvent.click(screen.getByText('EDITOR PREFERENCES'));
+
+    fireEvent.change(screen.getByLabelText('Color Theme'), { target: { value: 'classic-fanuc' } });
+
+    expect(document.documentElement.getAttribute('data-accent')).toBe('classic-fanuc');
+    expect(localStorage.getItem('cnc-sim-accent-theme')).toBe('classic-fanuc');
+  });
+
+  it('applies a previously-stored accent theme on a fresh mount', () => {
+    localStorage.setItem('cnc-sim-accent-theme', 'high-contrast');
+    render(<App />);
+    expect(document.documentElement.getAttribute('data-accent')).toBe('high-contrast');
+  });
+
+  it('rescales the --spacing CSS variable live and persists it when the UI Scale slider moves', () => {
+    render(<App />);
+    openSettings();
+
+    fireEvent.change(screen.getByLabelText('UI Scale / Density'), { target: { value: '80' } });
+
+    expect(document.documentElement.style.getPropertyValue('--spacing')).toBe('0.2000rem');
+    expect(localStorage.getItem('cnc-sim-ui-scale')).toBe('80');
+  });
+
+  it('applies a previously-stored UI scale on a fresh mount', () => {
+    localStorage.setItem('cnc-sim-ui-scale', '150');
+    render(<App />);
+    expect(document.documentElement.style.getPropertyValue('--spacing')).toBe('0.3750rem');
+  });
+});

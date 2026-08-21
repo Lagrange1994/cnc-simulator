@@ -171,6 +171,15 @@ export interface Job {
   status: JobStatus;
 }
 
+/** Accent color theme (SettingsManager.tsx's "Color Theme" select, wired to
+ * real CSS custom-property overrides in index.css via a `data-accent`
+ * attribute on <html> -- see App.tsx). Swaps only the interactive/link
+ * accent tokens, not the whole Gray-90 dark chrome: a full light theme
+ * would need every `bg-black/40`/`bg-white/5` overlay across the app
+ * re-audited, which is out of scope here (see index.css's comment on the
+ * accent blocks for the full reasoning). */
+export type AccentTheme = 'carbon-dark' | 'cyberpunk-neon' | 'high-contrast' | 'classic-fanuc';
+
 export type RenderMode = 'SOLID' | 'WIREFRAME' | 'X-RAY' | 'PLASTIC';
 export type Projection = 'PERSPECTIVE' | 'ORTHOGRAPHIC';
 

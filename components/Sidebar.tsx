@@ -267,7 +267,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             className={`col-span-2 h-16 font-bold text-xl flex items-center justify-center gap-3 transition-all chamfer-lg active:scale-[0.98] ${
               status.isSimulating || isPreparingCycle
                 ? 'bg-cds-layer-02 cursor-not-allowed opacity-50 text-cds-text-04'
-                : 'bg-cds-interactive hover:bg-cds-link text-white shadow-[0_0_20px_rgba(69,137,255,0.4)]'
+                : 'bg-cds-interactive hover:bg-cds-link text-white shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.4)]'
             }`}
           >
             <span className="material-symbols-outlined text-2xl" aria-hidden="true">play_arrow</span>

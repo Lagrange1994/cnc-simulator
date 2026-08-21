@@ -74,8 +74,12 @@ const Header: React.FC<HeaderProps> = ({
         <div className="size-8 flex items-center justify-center">
           <Logo />
         </div>
-        {/* $productive-heading-02 equivalent */}
-        <div className="flex flex-col">
+        {/* $productive-heading-02 equivalent. whitespace-nowrap keeps this
+            two-line block from wrapping into three lines and overflowing
+            the header's fixed h-14 at high UI Scale settings (SettingsManager
+            "UI Scale / Density"), where growing padding/gaps on both sides
+            of the header squeeze this block's available width. */}
+        <div className="flex flex-col whitespace-nowrap">
           <h1 className="font-display text-cds-text-01 text-base font-semibold tracking-wide uppercase leading-none">Super High Tech</h1>
           <span className="text-label font-mono text-cds-text-03 tracking-widest">CNC SIMULATOR v4.2</span>
         </div>
@@ -114,7 +118,7 @@ const Header: React.FC<HeaderProps> = ({
           className={`px-4 min-h-11 flex items-center justify-center text-body-sm font-semibold transition-colors ${
             isAnyOtherTabActive
               ? 'text-cds-text-02 hover:bg-white/10'
-              : 'bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30 shadow-[0_0_10px_rgba(69,137,255,0.2)]'
+              : 'bg-cds-interactive/20 text-cds-interactive border border-cds-interactive/30 shadow-[0_0_10px_rgba(var(--cds-interactive-glow-rgb),0.2)]'
           }`}
         >
           Simulation

@@ -87,7 +87,7 @@ const HelpManager: React.FC<HelpManagerProps> = ({ onClose, alarms, initialTab }
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full h-12 px-4 flex items-center gap-4 text-[10px] font-semibold tracking-widest transition-all relative chamfer-sm chamfer-border ${
                     activeTab === item.id
-                      ? 'bg-cds-interactive/40 before:bg-cds-interactive/10 text-cds-interactive shadow-[0_0_15px_rgba(69,137,255,0.1)]'
+                      ? 'bg-cds-interactive/40 before:bg-cds-interactive/10 text-cds-interactive shadow-[0_0_15px_rgba(var(--cds-interactive-glow-rgb),0.1)]'
                       : 'bg-transparent before:bg-transparent text-cds-text-03 hover:text-cds-text-02 hover:before:bg-white/5'
                   }`}
                 >

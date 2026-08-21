@@ -27,7 +27,7 @@ const Stat: React.FC<{ label: string; value: string; unit?: string }> = ({ label
 const CuttingResult: React.FC<CuttingResultProps> = ({ summary }) => {
   return (
     <div className="p-6 border-b border-cds-border bg-gradient-to-br from-cds-layer-01 to-cds-bg relative overflow-hidden">
-      <div className="absolute top-0 left-0 bottom-0 w-1 bg-cds-interactive shadow-[0_0_12px_rgba(69,137,255,0.6)]"></div>
+      <div className="absolute top-0 left-0 bottom-0 w-1 bg-cds-interactive shadow-[0_0_12px_rgba(var(--cds-interactive-glow-rgb),0.6)]"></div>
       <h2 className="text-cds-text-01 font-semibold text-base uppercase tracking-wide mb-4 flex items-center gap-2">
         <span className="material-symbols-outlined text-cds-interactive text-xl">insights</span>
         Cutting Result

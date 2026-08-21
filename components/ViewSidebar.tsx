@@ -77,7 +77,7 @@ const ViewSidebar: React.FC<ViewSidebarProps> = ({ onClose, settings, onSettings
                 onClick={() => onSettingsChange({ renderMode: mode.id })}
                 className={`relative aspect-square chamfer-md p-px transition-all group ${
                   settings.renderMode === mode.id
-                    ? 'bg-cds-interactive shadow-[0_0_15px_rgba(69,137,255,0.3)]'
+                    ? 'bg-cds-interactive shadow-[0_0_15px_rgba(var(--cds-interactive-glow-rgb),0.3)]'
                     : 'bg-cds-border/20 hover:bg-cds-border-str opacity-60 hover:opacity-100'
                 }`}
               >
@@ -115,7 +115,7 @@ const ViewSidebar: React.FC<ViewSidebarProps> = ({ onClose, settings, onSettings
                     onClick={() => onSettingsChange({ projection: opt })}
                     className={`flex-1 h-9 text-[10px] font-semibold tracking-widest transition-all ${
                       settings.projection === opt
-                        ? 'bg-cds-interactive text-white shadow-[0_0_10px_rgba(69,137,255,0.3)]'
+                        ? 'bg-cds-interactive text-white shadow-[0_0_10px_rgba(var(--cds-interactive-glow-rgb),0.3)]'
                         : 'text-cds-text-04 hover:text-cds-text-02'
                     }`}
                   >
@@ -180,7 +180,7 @@ const ViewSidebar: React.FC<ViewSidebarProps> = ({ onClose, settings, onSettings
           <span className="text-[8px] font-mono text-cds-text-04 uppercase tracking-widest">Graphics: Optimal</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-cds-interactive shadow-[0_0_5px_rgba(69,137,255,0.5)]"></div>
+          <div className="w-1.5 h-1.5 bg-cds-interactive shadow-[0_0_5px_rgba(var(--cds-interactive-glow-rgb),0.5)]"></div>
           <span className="text-[8px] font-mono text-cds-text-04 uppercase tracking-widest">FPS: 144.0</span>
         </div>
       </div>

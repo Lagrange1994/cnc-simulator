@@ -59,6 +59,45 @@ describe('Editor', () => {
     expect(saveButton.className).toContain('size-11');
   });
 
+  describe('CAM Source indicator', () => {
+    it('shows the post-processor name in the status bar', () => {
+      renderEditor();
+      expect(screen.getByText(/Source:/)).toBeInTheDocument();
+      // Appears twice: once in the status bar label, once in the tooltip's
+      // own Post-Processor row.
+      expect(screen.getAllByText(/fanuc_0imf\.cps/).length).toBe(2);
+    });
+
+    it('exposes CAM system, post-processor, target control, program, and generated date in the tooltip', () => {
+      renderEditor();
+      expect(screen.getByText('Autodesk Fusion 360 CAM v2.0.19')).toBeInTheDocument();
+      expect(screen.getByText('Fanuc 0i-MF Plus (3-Axis Mill)')).toBeInTheDocument();
+      expect(screen.getByText('PROJECT_ALPHA_V2.NC')).toBeInTheDocument();
+      expect(screen.getByText('2026-08-18 14:32 UTC')).toBeInTheDocument();
+    });
+
+    it('derives the Units line from the program\'s actual G21/G20, not a hardcoded claim', () => {
+      renderEditor();
+      expect(screen.getByText('Metric (mm) (line 001)')).toBeInTheDocument();
+    });
+
+    it('reports Imperial when the program starts with G20 instead', () => {
+      const g20Lines: GCodeLine[] = [
+        { id: '1', lineNum: '001', command: 'G20', comment: 'Imperial Units', type: 'setup' },
+      ];
+      renderEditor(0, {}, false, g20Lines);
+      expect(screen.getByText('Imperial (in) (line 001)')).toBeInTheDocument();
+    });
+
+    it('reports Unspecified when the program has neither G21 nor G20', () => {
+      const noUnitsLines: GCodeLine[] = [
+        { id: '1', lineNum: '001', command: 'G90', comment: 'Absolute Positioning', type: 'setup' },
+      ];
+      renderEditor(0, {}, false, noUnitsLines);
+      expect(screen.getByText('Unspecified')).toBeInTheDocument();
+    });
+  });
+
   describe('Execution Modifiers', () => {
     it('renders all four toggles, inactive by default', () => {
       renderEditor();

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { OeeCounters } from '../types';
+import { PROGRAM_FILE_NAME, MACHINE_CONTROL_NAME } from '../constants';
 
 type FleetStatus = 'RUNNING' | 'IDLE' | 'ALARM' | 'OFFLINE';
 
@@ -35,7 +36,7 @@ const STATUS_STYLES: Record<FleetStatus, { dot: string; text: string; badge: str
 const MachineCard: React.FC<{ machine: FleetMachine }> = ({ machine }) => {
   const style = STATUS_STYLES[machine.status];
   return (
-    <div className={`bg-cds-bg/60 border p-5 chamfer-md flex flex-col gap-4 relative ${machine.isThisSession ? 'border-cds-interactive/50 shadow-[0_0_20px_rgba(69,137,255,0.1)]' : 'border-cds-border/30'}`}>
+    <div className={`bg-cds-bg/60 border p-5 chamfer-md flex flex-col gap-4 relative ${machine.isThisSession ? 'border-cds-interactive/50 shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.1)]' : 'border-cds-border/30'}`}>
       {machine.isThisSession && (
         <span className="absolute top-3 right-3 text-[8px] font-mono text-cds-interactive tracking-widest uppercase">This Session</span>
       )}
@@ -122,9 +123,9 @@ const FleetView: React.FC<FleetViewProps> = ({ onClose, liveMachine, productionM
   const machines: FleetMachine[] = [
     {
       id: 'MACHINE_01',
-      model: 'Fanuc 0i-MF Plus (3-Axis Mill)',
+      model: MACHINE_CONTROL_NAME,
       status: liveStatus,
-      job: 'PROJECT_ALPHA_V2.NC',
+      job: PROGRAM_FILE_NAME,
       completionPercent: Math.round(liveMachine.completionPercent),
       detail: liveMachine.hasActiveAlarm
         ? 'Active alarm -- see System Logs for detail'

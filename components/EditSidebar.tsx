@@ -278,7 +278,7 @@ const EditSidebar: React.FC<EditSidebarProps> = ({ onClose, tools, onUpdateTool 
           <span className="text-[8px] font-mono text-cds-text-04 uppercase tracking-widest">Compiler: Active</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-cds-interactive shadow-[0_0_5px_rgba(69,137,255,0.5)]"></div>
+          <div className="w-1.5 h-1.5 bg-cds-interactive shadow-[0_0_5px_rgba(var(--cds-interactive-glow-rgb),0.5)]"></div>
           <span className="text-[8px] font-mono text-cds-text-04 uppercase tracking-widest">Latency: 0.002ms</span>
         </div>
       </div>

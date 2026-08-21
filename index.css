@@ -77,6 +77,50 @@
   --cds-support-info:    #4589ff;  /* Blue-60  */
 }
 
+/* ---- Accent Color Theme (SettingsManager "Color Theme" select) ----
+   Swaps only the interactive/link accent tokens plus the accent glow's RGB
+   triplet (used by every `shadow-[...rgba(var(--cds-interactive-glow-rgb),*)]`
+   in the app) via a `data-accent` attribute App.tsx sets on <html>. This is
+   deliberately NOT a full light/dark theme: this codebase leans on
+   `bg-black/40`/`bg-white/5` opacity overlays in dozens of places instead of
+   layer tokens, so swapping cds-bg/cds-layer-* alone would leave those
+   overlays reading wrong against a light background. Recoloring just the
+   accent keeps the blast radius to "things that are already blue" -- a
+   real, safe theme rather than a half-correct light mode. */
+/* Both --color-cds-interactive (the @theme token Tailwind's bg-cds-interactive
+   etc. utilities read) and --cds-interactive (the older, separate plain-CSS
+   token this file's native <input type="range"> thumb styling below reads)
+   need to move together -- they're two names for the same accent color that
+   predate this feature, not two different colors. */
+[data-accent="carbon-dark"], :root:not([data-accent]) {
+  --color-cds-interactive: #4589ff;
+  --color-cds-link: #78a9ff;
+  --cds-interactive: #4589ff;
+  --cds-link-primary: #78a9ff;
+  --cds-interactive-glow-rgb: 69, 137, 255;
+}
+[data-accent="cyberpunk-neon"] {
+  --color-cds-interactive: #a56eff;
+  --color-cds-link: #be95ff;
+  --cds-interactive: #a56eff;
+  --cds-link-primary: #be95ff;
+  --cds-interactive-glow-rgb: 165, 110, 255;
+}
+[data-accent="high-contrast"] {
+  --color-cds-interactive: #ff832b;
+  --color-cds-link: #ffb680;
+  --cds-interactive: #ff832b;
+  --cds-link-primary: #ffb680;
+  --cds-interactive-glow-rgb: 255, 131, 43;
+}
+[data-accent="classic-fanuc"] {
+  --color-cds-interactive: #42be65;
+  --color-cds-link: #6fdc8c;
+  --cds-interactive: #42be65;
+  --cds-link-primary: #6fdc8c;
+  --cds-interactive-glow-rgb: 66, 190, 101;
+}
+
 /* ---- Base Typography (Carbon Type Scale) ---- */
 body {
   font-family: 'IBM Plex Sans', system-ui, sans-serif;

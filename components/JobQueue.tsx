@@ -42,7 +42,7 @@ const JobRow: React.FC<{
   const canRemove = job.status !== 'active';
 
   return (
-    <div className={`bg-cds-bg/60 border p-4 chamfer-md flex flex-col gap-3 relative ${job.status === 'active' ? 'border-cds-interactive/50 shadow-[0_0_20px_rgba(69,137,255,0.1)]' : 'border-cds-border/30'}`}>
+    <div className={`bg-cds-bg/60 border p-4 chamfer-md flex flex-col gap-3 relative ${job.status === 'active' ? 'border-cds-interactive/50 shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.1)]' : 'border-cds-border/30'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-cds-text-01 font-semibold text-body-sm tracking-wide truncate">{job.partName}</h3>

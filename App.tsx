@@ -16,8 +16,8 @@ import FleetView from './components/FleetView';
 import JobQueue from './components/JobQueue';
 import CollisionReport from './components/CollisionReport';
 import ProbingWizard from './components/ProbingWizard';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters, Job } from './types';
-import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS, DEFAULT_JOB_QUEUE, DEFAULT_PROBE_TIP_DIAMETER_MM } from './constants';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters, Job, AccentTheme } from './types';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS, DEFAULT_JOB_QUEUE, DEFAULT_PROBE_TIP_DIAMETER_MM, PROGRAM_FILE_NAME, DEFAULT_ACCENT_THEME, DEFAULT_UI_SCALE_PERCENT } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { analyzeCollisionRisk } from './lib/gcode/collisionCheck';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
@@ -49,6 +49,30 @@ const App: React.FC = () => {
   const [isJobQueueOpen, setIsJobQueueOpen] = useState(false);
   const [isCollisionReportOpen, setIsCollisionReportOpen] = useState(false);
   const [isProbingWizardOpen, setIsProbingWizardOpen] = useState(false);
+  // Accent Color / UI Scale (SettingsManager's "Color Theme" select and
+  // "UI Scale / Density" slider) -- real, app-wide appearance state, so
+  // (unlike SettingsManager's other still-decorative controls) it lives
+  // here and persists to localStorage rather than resetting every time the
+  // panel closes. Read once at mount; the effects below both apply the
+  // live value to <html> and keep localStorage in sync on every change.
+  const [accentTheme, setAccentTheme] = useState<AccentTheme>(
+    () => (localStorage.getItem('cnc-sim-accent-theme') as AccentTheme | null) ?? DEFAULT_ACCENT_THEME
+  );
+  const [uiScalePercent, setUiScalePercent] = useState<number>(() => {
+    const stored = Number(localStorage.getItem('cnc-sim-ui-scale'));
+    return Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_UI_SCALE_PERCENT;
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-accent', accentTheme);
+    localStorage.setItem('cnc-sim-accent-theme', accentTheme);
+  }, [accentTheme]);
+  useEffect(() => {
+    // Tailwind v4's entire spacing scale (padding/margin/gap/size-*) is a
+    // multiple of this one variable -- rescaling it here rescales every
+    // one of those utilities app-wide with no per-component changes.
+    document.documentElement.style.setProperty('--spacing', `${(0.25 * uiScalePercent / 100).toFixed(4)}rem`);
+    localStorage.setItem('cnc-sim-ui-scale', String(uiScalePercent));
+  }, [uiScalePercent]);
   const [viewSettings, setViewSettings] = useState<ViewSettings>(DEFAULT_VIEW_SETTINGS);
   const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
     setViewSettings(prev => ({ ...prev, ...patch }));
@@ -145,7 +169,7 @@ const App: React.FC = () => {
       const newJob: Job = {
         id: Math.random().toString(36).substr(2, 9),
         partName,
-        programName: 'PROJECT_ALPHA_V2.NC',
+        programName: PROGRAM_FILE_NAME,
         quantity,
         completedQty: 0,
         scrappedQty: 0,
@@ -713,7 +737,15 @@ const App: React.FC = () => {
       {/* Overlays */}
       {isFileMenuOpen && <FileManager onClose={() => setIsFileMenuOpen(false)} />}
       {isHelpMenuOpen && <HelpManager onClose={() => setIsHelpMenuOpen(false)} alarms={alarms} initialTab={helpInitialTab} />}
-      {isSettingsOpen && <SettingsManager onClose={() => setIsSettingsOpen(false)} />}
+      {isSettingsOpen && (
+        <SettingsManager
+          onClose={() => setIsSettingsOpen(false)}
+          accentTheme={accentTheme}
+          onAccentThemeChange={setAccentTheme}
+          uiScalePercent={uiScalePercent}
+          onUiScalePercentChange={setUiScalePercent}
+        />
+      )}
       {isFleetViewOpen && (
         <FleetView
           onClose={() => setIsFleetViewOpen(false)}

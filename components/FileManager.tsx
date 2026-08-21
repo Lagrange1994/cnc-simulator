@@ -94,7 +94,7 @@ const FileManager: React.FC<FileManagerProps> = ({ onClose }) => {
           {/* Left Sidebar */}
           <aside className="w-72 bg-black/20 border-r border-cds-border/30 flex flex-col p-6 shrink-0">
             {/* Carbon Primary Button */}
-            <button className="h-12 w-full mb-8 bg-cds-interactive hover:bg-cds-link text-white font-semibold text-[10px] tracking-[0.2em] flex items-center justify-center gap-3 chamfer-sm transition-all shadow-[0_0_20px_rgba(69,137,255,0.2)] active:scale-95 group">
+            <button className="h-12 w-full mb-8 bg-cds-interactive hover:bg-cds-link text-white font-semibold text-[10px] tracking-[0.2em] flex items-center justify-center gap-3 chamfer-sm transition-all shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.2)] active:scale-95 group">
               <span className="material-symbols-outlined text-sm group-hover:rotate-90 transition-transform">add</span>
               CREATE WORKSPACE
             </button>
@@ -107,7 +107,7 @@ const FileManager: React.FC<FileManagerProps> = ({ onClose }) => {
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full h-12 px-4 flex items-center gap-4 text-[10px] font-semibold tracking-widest transition-all relative chamfer-sm chamfer-border ${
                     activeTab === item.id
-                      ? 'bg-cds-interactive/40 before:bg-cds-interactive/10 text-cds-interactive shadow-[0_0_15px_rgba(69,137,255,0.1)]'
+                      ? 'bg-cds-interactive/40 before:bg-cds-interactive/10 text-cds-interactive shadow-[0_0_15px_rgba(var(--cds-interactive-glow-rgb),0.1)]'
                       : 'bg-transparent before:bg-transparent text-cds-text-03 hover:text-cds-text-02 hover:before:bg-white/5'
                   }`}
                 >

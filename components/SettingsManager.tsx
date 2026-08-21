@@ -1,12 +1,23 @@
 
 import React, { useState } from 'react';
 import InfoTooltip from './InfoTooltip';
+import { AccentTheme } from '../types';
+import { ACCENT_THEME_OPTIONS, UI_SCALE_MIN_PERCENT, UI_SCALE_MAX_PERCENT, UI_SCALE_STEP_PERCENT } from '../constants';
 
 interface SettingsManagerProps {
   onClose: () => void;
+  /** Accent Color (the "Color Theme" select below) and UI Scale (the
+   * density slider) are lifted to App.tsx -- unlike this panel's other,
+   * still-decorative controls, these two actually repaint the live app
+   * (via a `data-accent` attribute and the `--spacing` CSS variable), so
+   * they need to persist and apply even while this panel is closed. */
+  accentTheme: AccentTheme;
+  onAccentThemeChange: (theme: AccentTheme) => void;
+  uiScalePercent: number;
+  onUiScalePercentChange: (percent: number) => void;
 }
 
-const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
+const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose, accentTheme, onAccentThemeChange, uiScalePercent, onUiScalePercentChange }) => {
   const [activeTab, setActiveTab] = useState('General');
 
   const [qualityPreset, setQualityPreset] = useState('ULTRA');
@@ -31,7 +42,6 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
 
   const [editorFont, setEditorFont] = useState('JetBrains Mono');
   const [editorFontSize, setEditorFontSize] = useState(14);
-  const [editorTheme, setEditorTheme] = useState('Carbon Dark');
   const [autoComplete, setAutoComplete] = useState(true);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
 
@@ -128,7 +138,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full h-12 px-4 flex items-center gap-4 text-[10px] font-semibold tracking-widest transition-all chamfer-sm border border-transparent ${
                       isActive
-                        ? 'bg-cds-interactive text-white shadow-[0_0_15px_rgba(69,137,255,0.3)] translate-x-1'
+                        ? 'bg-cds-interactive text-white shadow-[0_0_15px_rgba(var(--cds-interactive-glow-rgb),0.3)] translate-x-1'
                         : 'text-cds-text-03 hover:text-cds-text-02 hover:bg-white/5'
                     }`}
                   >
@@ -200,14 +210,24 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                       </div>
                       <div className="col-span-2">
                         <div className="flex justify-between items-center mb-2">
-                          <label className="text-[9px] text-cds-text-04 uppercase font-semibold">UI Scale Factor</label>
-                          <span className="text-[10px] font-mono text-cds-interactive">100%</span>
+                          <label htmlFor="ui-scale-input" className="text-[9px] text-cds-text-04 uppercase font-semibold">UI Scale / Density</label>
+                          <span className="text-[10px] font-mono text-cds-interactive">{uiScalePercent}%</span>
                         </div>
                         <div className="relative h-6 flex items-center">
-                          <input type="range" min="100" max="150" step="10" defaultValue="100" className="w-full accent-[#4589ff]" />
-                          <div className="absolute left-0 bottom-0 text-[8px] text-cds-text-04 font-mono">100%</div>
-                          <div className="absolute right-0 bottom-0 text-[8px] text-cds-text-04 font-mono">150%</div>
+                          <input
+                            id="ui-scale-input"
+                            type="range"
+                            min={UI_SCALE_MIN_PERCENT}
+                            max={UI_SCALE_MAX_PERCENT}
+                            step={UI_SCALE_STEP_PERCENT}
+                            value={uiScalePercent}
+                            onChange={(e) => onUiScalePercentChange(Number(e.target.value))}
+                            className="w-full accent-[#4589ff]"
+                          />
+                          <div className="absolute left-0 bottom-0 text-[8px] text-cds-text-04 font-mono">{UI_SCALE_MIN_PERCENT}% (Compact)</div>
+                          <div className="absolute right-0 bottom-0 text-[8px] text-cds-text-04 font-mono">{UI_SCALE_MAX_PERCENT}% (Spacious)</div>
                         </div>
+                        <p className="text-[8px] text-cds-text-04 mt-4 normal-case leading-relaxed">Rescales padding, gaps, and control sizing across the whole app in real time -- below 100% trades touch-target size for information density.</p>
                       </div>
                     </div>
                   </div>
@@ -225,7 +245,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                             onClick={() => setQualityPreset(preset)}
                             className={`h-24 relative flex flex-col items-center justify-center gap-2 transition-all duration-300 chamfer-md chamfer-border group ${
                               isSelected
-                                ? 'bg-cds-interactive before:bg-cds-interactive/10 shadow-[0_0_20px_rgba(69,137,255,0.2)]'
+                                ? 'bg-cds-interactive before:bg-cds-interactive/10 shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.2)]'
                                 : 'bg-cds-border/30 before:bg-cds-bg hover:bg-cds-border-str hover:before:bg-white/5'
                             }`}
                           >
@@ -384,7 +404,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                 <div className="flex-[2] bg-black/40 relative flex flex-col items-center justify-center overflow-hidden border-l border-cds-border/20">
                   <div className="absolute inset-0 opacity-10 hex-bg pointer-events-none"></div>
                   <div className="relative z-10 w-64 h-64">
-                    <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-[0_0_30px_rgba(69,137,255,0.1)]">
+                    <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-[0_0_30px_rgba(var(--cds-interactive-glow-rgb),0.1)]">
                       <g transform="translate(100,100) rotateX(-20) rotateY(45) scale(0.85)">
                         <path d="M-50 -50 L50 -50 L50 50 M-50 -50 L-50 50" fill="none" stroke="#525252" strokeWidth="0.5" strokeDasharray="2,2" />
                         <path d="M-50 50 L50 50 L50 -50" fill="none" stroke="#4589ff" strokeWidth="1.5" strokeOpacity="0.8" />
@@ -560,16 +580,21 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                     </label>
                     <div className="space-y-6">
                       <div>
-                        <label className="block text-[9px] text-cds-text-04 uppercase font-semibold mb-2">Color Theme</label>
+                        <label htmlFor="accent-theme-select" className="block text-[9px] text-cds-text-04 uppercase font-semibold mb-2">Color Theme</label>
                         <div className="relative">
-                          <select value={editorTheme} onChange={(e) => setEditorTheme(e.target.value)} className={`w-full ${inputCls}`}>
-                            <option>Carbon Dark</option>
-                            <option>Cyberpunk Neon</option>
-                            <option>High Contrast</option>
-                            <option>Classic Fanuc (Green)</option>
+                          <select
+                            id="accent-theme-select"
+                            value={accentTheme}
+                            onChange={(e) => onAccentThemeChange(e.target.value as AccentTheme)}
+                            className={`w-full ${inputCls}`}
+                          >
+                            {ACCENT_THEME_OPTIONS.map(({ id, label }) => (
+                              <option key={id} value={id}>{label}</option>
+                            ))}
                           </select>
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-cds-text-04 pointer-events-none text-sm">expand_more</span>
                         </div>
+                        <p className="text-[8px] text-cds-text-04 mt-1.5 normal-case leading-relaxed">Recolors buttons, active states, and glows across the whole app -- not just this editor panel.</p>
                       </div>
                       <div className="bg-cds-layer-02 border border-cds-border/20 p-4 chamfer-sm space-y-4">
                         <div className="flex items-center justify-between">
@@ -595,7 +620,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                       </span>
                       <span className="text-[9px] font-mono text-cds-text-04">{editorFont} | {editorFontSize}px</span>
                     </div>
-                    <div className="bg-cds-bg border border-cds-interactive shadow-[0_0_30px_rgba(69,137,255,0.1)] p-4 chamfer-md relative overflow-hidden h-64">
+                    <div className="bg-cds-bg border border-cds-interactive shadow-[0_0_30px_rgba(var(--cds-interactive-glow-rgb),0.1)] p-4 chamfer-md relative overflow-hidden h-64">
                       <div className="flex h-full font-mono" style={{ fontFamily: editorFont, fontSize: `${editorFontSize}px` }}>
                         {showLineNumbers && (
                           <div className="pr-4 border-r border-cds-border/20 text-cds-text-04 select-none text-right">
@@ -681,7 +706,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                           <span className="text-[10px] font-semibold text-cds-text-03 uppercase tracking-widest">45% of 50GB</span>
                         </div>
                         <div className="h-3 w-full bg-cds-bg border border-cds-border/20 chamfer-sm overflow-hidden p-[1px]">
-                          <div className="h-full bg-gradient-to-r from-cds-interactive to-cyan-400 w-[45%] shadow-[0_0_15px_rgba(69,137,255,0.4)]"></div>
+                          <div className="h-full bg-gradient-to-r from-cds-interactive to-cyan-400 w-[45%] shadow-[0_0_15px_rgba(var(--cds-interactive-glow-rgb),0.4)]"></div>
                         </div>
                         <div className="flex gap-6 mt-4">
                           <div className="flex items-center gap-2">
@@ -750,7 +775,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
                         <div key={i} className={`absolute ${pos} w-2 h-2 border-cds-interactive`}></div>
                       ))}
                       <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-                        <div className="w-16 h-16 border-2 border-cds-interactive chamfer-sm flex items-center justify-center shadow-[0_0_20px_rgba(69,137,255,0.2)] animate-pulse">
+                        <div className="w-16 h-16 border-2 border-cds-interactive chamfer-sm flex items-center justify-center shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.2)] animate-pulse">
                           <span className="material-symbols-outlined text-3xl text-cds-text-01">hub</span>
                         </div>
                         <div className="w-full h-px bg-gradient-to-r from-transparent via-cds-interactive/50 to-transparent"></div>
@@ -788,7 +813,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ onClose }) => {
           {/* Carbon Primary Button */}
           <button
             onClick={onClose}
-            className="px-8 py-4 bg-cds-interactive hover:bg-cds-link text-white text-[10px] font-semibold tracking-[0.2em] uppercase chamfer-md shadow-[0_0_20px_rgba(69,137,255,0.3)] hover:shadow-[0_0_30px_rgba(69,137,255,0.5)] transition-all active:scale-95 flex items-center gap-3"
+            className="px-8 py-4 bg-cds-interactive hover:bg-cds-link text-white text-[10px] font-semibold tracking-[0.2em] uppercase chamfer-md shadow-[0_0_20px_rgba(var(--cds-interactive-glow-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--cds-interactive-glow-rgb),0.5)] transition-all active:scale-95 flex items-center gap-3"
           >
             <span className="material-symbols-outlined text-xl">save_as</span>
             SAVE & RESTART

@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { GCodeLine, ExecutionModifiers } from '../types';
+import { CAM_SOURCE_INFO, MACHINE_CONTROL_NAME, PROGRAM_FILE_NAME } from '../constants';
+import InfoTooltip from './InfoTooltip';
 
 interface EditorProps {
   lines: GCodeLine[];
@@ -21,6 +23,12 @@ const MODIFIER_TOGGLES: { key: keyof ExecutionModifiers; label: string; locksWhi
 ];
 
 const Editor: React.FC<EditorProps> = ({ lines, activeLineIndex, execModifiers, onExecModifiersChange, isCuttingLocked }) => {
+  // Units check is derived from the actual program, not asserted separately
+  // -- if line 001 ever stopped being a G21/G20, this would say so instead
+  // of silently repeating a hardcoded "Metric" claim.
+  const unitsLine = lines.find(l => l.command === 'G21' || l.command === 'G20');
+  const unitsLabel = unitsLine ? (unitsLine.command === 'G21' ? 'Metric (mm)' : 'Imperial (in)') : 'Unspecified';
+
   return (
     <aside className="flex-1 flex flex-col bg-cds-bg overflow-hidden">
       {/* Carbon $layer-01 toolbar — h-11 so the icon buttons can hit the 44px touch target */}
@@ -113,6 +121,19 @@ const Editor: React.FC<EditorProps> = ({ lines, activeLineIndex, execModifiers, 
       {/* Status bar – Carbon $layer-01 */}
       <div className="h-8 bg-cds-layer-01 border-t border-cds-border flex items-center px-4 justify-between text-[10px] text-cds-text-04 font-mono uppercase shrink-0">
         <span>Total Lines: {lines.length}</span>
+        <span className="flex items-center gap-1.5 normal-case">
+          Source: {CAM_SOURCE_INFO.postProcessor}
+          <InfoTooltip>
+            <dl className="space-y-2">
+              <div><dt className="text-cds-text-04">CAM System</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.camSystem}</dd></div>
+              <div><dt className="text-cds-text-04">Post-Processor</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.postProcessor}</dd></div>
+              <div><dt className="text-cds-text-04">Target Control</dt><dd className="text-cds-text-01">{MACHINE_CONTROL_NAME}</dd></div>
+              <div><dt className="text-cds-text-04">Program</dt><dd className="text-cds-text-01">{PROGRAM_FILE_NAME}</dd></div>
+              <div><dt className="text-cds-text-04">Generated</dt><dd className="text-cds-text-01">{CAM_SOURCE_INFO.generatedAt}</dd></div>
+              <div><dt className="text-cds-text-04">Units</dt><dd className="text-cds-text-01">{unitsLabel}{unitsLine ? ` (line ${unitsLine.lineNum})` : ''}</dd></div>
+            </dl>
+          </InfoTooltip>
+        </span>
         <span>Encoding: UTF-8</span>
       </div>
     </aside>

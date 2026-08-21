@@ -53,7 +53,7 @@ const SimulationLoadingModal: React.FC<SimulationLoadingModalProps> = ({ isOpen,
       role="status"
       aria-live="polite"
     >
-      <div className="w-80 bg-cds-layer-01 border border-cds-interactive/40 chamfer-lg p-8 flex flex-col items-center gap-4 shadow-[0_0_40px_rgba(69,137,255,0.2)]">
+      <div className="w-80 bg-cds-layer-01 border border-cds-interactive/40 chamfer-lg p-8 flex flex-col items-center gap-4 shadow-[0_0_40px_rgba(var(--cds-interactive-glow-rgb),0.2)]">
         {/* No rounded-full: this app's global `* { border-radius: 0 }` industrial
             aesthetic already turns every spinner into a rotating square frame
             (see AiAssistant.tsx's loading spinner for the same pattern). */}
