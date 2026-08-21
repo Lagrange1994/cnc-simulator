@@ -61,6 +61,15 @@ export const DEFAULT_EXECUTION_MODIFIERS: ExecutionModifiers = {
   blockSkip: false,
 };
 
+// Renishaw-standard stylus ball diameter -- a common, real default for a
+// touch-trigger probe, not an arbitrary round number.
+export const DEFAULT_PROBE_TIP_DIAMETER_MM = 4.0;
+export const PROBE_TIP_DIAMETER_MIN_MM = 0.5;
+export const PROBE_TIP_DIAMETER_MAX_MM = 12.0;
+
+// Real jog controls offer one shared step size, not a per-axis one.
+export const JOG_STEP_OPTIONS_MM = [0.1, 1, 10];
+
 export const WCS_IDS: WcsId[] = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59'];
 export const DEFAULT_ACTIVE_WCS: WcsId = 'G54';
 export const DEFAULT_WCS_OFFSETS: WcsOffsets = {

@@ -910,3 +910,114 @@ describe('Collision/Gouge Report', () => {
     expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
   });
 });
+
+/** Scopes to one axis panel by its "<Label> Axis" heading, so assertions
+ * on its Offset/live-value text don't collide with the same numbers on a
+ * different axis's panel. */
+function axisPanel(label: 'X' | 'Y' | 'Z'): HTMLElement {
+  return screen.getByText(`${label} Axis`).closest('div.chamfer-md') as HTMLElement;
+}
+
+describe('Touch-Off Wizard', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function openProbingWizard() {
+    fireEvent.click(screen.getByLabelText('Open Touch-Off Wizard'));
+  }
+
+  it('opens from the Sidebar WCS button showing zeroed offsets for the default G54', () => {
+    render(<App />);
+    openProbingWizard();
+
+    expect(screen.getByText('TOUCH-OFF WIZARD')).toBeInTheDocument();
+    expect(within(axisPanel('X')).getByText('Offset: 0.000mm')).toBeInTheDocument();
+    expect(within(axisPanel('Y')).getByText('Offset: 0.000mm')).toBeInTheDocument();
+    expect(within(axisPanel('Z')).getByText('Offset: 0.000mm')).toBeInTheDocument();
+  });
+
+  it('jogs the live X readout by the selected step, and it matches the DRO/live machine position', () => {
+    render(<App />);
+    openProbingWizard();
+
+    fireEvent.click(screen.getByLabelText('Jog X positive 1mm'));
+    expect(within(axisPanel('X')).getByText('1.000')).toBeInTheDocument();
+  });
+
+  it('sets a probe-radius-compensated X offset on trigger, defaulting to the +X approach', () => {
+    render(<App />);
+    openProbingWizard();
+
+    // Coords start at X=0; default probe tip is Ø4mm (radius 2mm); default
+    // approach is +X, so true surface = 0 + 2 = 2.000mm.
+    fireEvent.click(within(axisPanel('X')).getByText('Trigger Probe -- Set X Work Zero'));
+    expect(within(axisPanel('X')).getByText('Offset: 2.000mm')).toBeInTheDocument();
+  });
+
+  it('flips the sign when the -X approach is selected instead', () => {
+    render(<App />);
+    openProbingWizard();
+
+    fireEvent.click(screen.getByLabelText('Set X probe approach to -X'));
+    fireEvent.click(within(axisPanel('X')).getByText('Trigger Probe -- Set X Work Zero'));
+    expect(within(axisPanel('X')).getByText('Offset: -2.000mm')).toBeInTheDocument();
+  });
+
+  it('recomputes the compensation when the probe tip diameter changes', () => {
+    render(<App />);
+    openProbingWizard();
+
+    fireEvent.change(screen.getByLabelText('Probe tip diameter, mm'), { target: { value: '6' } });
+    fireEvent.click(within(axisPanel('X')).getByText('Trigger Probe -- Set X Work Zero'));
+    // radius 3mm, +X approach: 0 + 3 = 3.000mm.
+    expect(within(axisPanel('X')).getByText('Offset: 3.000mm')).toBeInTheDocument();
+  });
+
+  it('Z always probes downward (negative approach) with no direction toggle', () => {
+    render(<App />);
+    openProbingWizard();
+
+    fireEvent.click(within(axisPanel('Z')).getByText('Trigger Probe -- Set Z Work Zero'));
+    // Coords start at Z=10, Ø4mm probe: 10 - 2 = 8.000mm.
+    expect(within(axisPanel('Z')).getByText('Offset: 8.000mm')).toBeInTheDocument();
+  });
+
+  it('sets the offset on whichever WCS is selected, leaving the others untouched', () => {
+    render(<App />);
+    openProbingWizard();
+
+    fireEvent.change(screen.getByLabelText('Work coordinate system to set'), { target: { value: 'G55' } });
+    fireEvent.click(within(axisPanel('X')).getByText('Trigger Probe -- Set X Work Zero'));
+    expect(within(axisPanel('X')).getByText('Offset: 2.000mm')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Work coordinate system to set'), { target: { value: 'G54' } });
+    expect(within(axisPanel('X')).getByText('Offset: 0.000mm')).toBeInTheDocument();
+  });
+
+  it('disables jog and probe controls while the machine is simulating', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+
+    openProbingWizard();
+    expect(screen.getByText('Jog and probe controls are locked while the machine is simulating.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Jog X positive 1mm')).toBeDisabled();
+    expect(within(axisPanel('X')).getByText('Trigger Probe -- Set X Work Zero').closest('button')).toBeDisabled();
+  });
+
+  it('closes and hides the app shell from the accessibility tree while open, like the other full-screen modals', () => {
+    render(<App />);
+    openProbingWizard();
+
+    const shellHeading = screen.getByText('Super High Tech');
+    expect(shellHeading.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Close Touch-Off Wizard'));
+    expect(screen.queryByText('TOUCH-OFF WIZARD')).not.toBeInTheDocument();
+    expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
+  });
+});

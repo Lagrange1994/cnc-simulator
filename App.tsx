@@ -15,8 +15,9 @@ import SimulationLoadingModal from './components/SimulationLoadingModal';
 import FleetView from './components/FleetView';
 import JobQueue from './components/JobQueue';
 import CollisionReport from './components/CollisionReport';
+import ProbingWizard from './components/ProbingWizard';
 import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters, Job } from './types';
-import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS, DEFAULT_JOB_QUEUE } from './constants';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS, DEFAULT_JOB_QUEUE, DEFAULT_PROBE_TIP_DIAMETER_MM } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { analyzeCollisionRisk } from './lib/gcode/collisionCheck';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
@@ -47,6 +48,7 @@ const App: React.FC = () => {
   const [isFleetViewOpen, setIsFleetViewOpen] = useState(false);
   const [isJobQueueOpen, setIsJobQueueOpen] = useState(false);
   const [isCollisionReportOpen, setIsCollisionReportOpen] = useState(false);
+  const [isProbingWizardOpen, setIsProbingWizardOpen] = useState(false);
   const [viewSettings, setViewSettings] = useState<ViewSettings>(DEFAULT_VIEW_SETTINGS);
   const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
     setViewSettings(prev => ({ ...prev, ...patch }));
@@ -69,6 +71,21 @@ const App: React.FC = () => {
   // so the DRO reads exactly 0 for it from then on.
   const [activeWcsId, setActiveWcsId] = useState<WcsId>(DEFAULT_ACTIVE_WCS);
   const [wcsOffsets, setWcsOffsets] = useState<WcsOffsets>(DEFAULT_WCS_OFFSETS);
+  // Touch-Off Wizard (ProbingWizard.tsx): probeTipDiameterMm is the probe's
+  // own geometry (persists across wizard opens, like Tool Offset Table's
+  // state), not the wizard's transient UI state (jog step size/approach
+  // toggles stay local to the component). jogAxis moves the same `coords`
+  // the DRO and Viewport already read -- see the movement effect below for
+  // why this is safe to leave jogged: a fresh CYCLE START always drives
+  // `coords` from the timeline's own fixed start point regardless of where
+  // it was jogged to.
+  const [probeTipDiameterMm, setProbeTipDiameterMm] = useState(DEFAULT_PROBE_TIP_DIAMETER_MM);
+  const jogAxis = useCallback((axis: keyof Coordinates, deltaMm: number) => {
+    setCoords(prev => ({ ...prev, [axis]: prev[axis] + deltaMm }));
+  }, []);
+  const setWcsOffsetAxis = useCallback((id: WcsId, axis: keyof Coordinates, value: number) => {
+    setWcsOffsets(prev => ({ ...prev, [id]: { ...prev[id], [axis]: value } }));
+  }, []);
   // Alarm/Fault History -- structured, persistent record of conditions that
   // exceeded a machine limit, separate from the Console Output line-by-line
   // log. Raised/cleared by the effect below; see HelpManager's System Logs
@@ -168,7 +185,7 @@ const App: React.FC = () => {
   // of the shell behind them so screen readers see one active H1 at a time.
   // The cycle-loading modal joins this set too: it's a transient overlay,
   // not a document root, but the background shell should stay just as inert.
-  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isFleetViewOpen || isJobQueueOpen || isCollisionReportOpen || isCycleLoadingOpen;
+  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isFleetViewOpen || isJobQueueOpen || isCollisionReportOpen || isProbingWizardOpen || isCycleLoadingOpen;
   const [leftWidth, setLeftWidth] = useState(420);
   const [rightWidth, setRightWidth] = useState(340);
   const [terminalHeight, setTerminalHeight] = useState(200);
@@ -196,6 +213,15 @@ const App: React.FC = () => {
     }));
     addLog(`${activeWcsId} ${axis.toUpperCase()} zeroed at current position.`, 'info');
   }, [activeWcsId, coords, addLog]);
+
+  // Touch-Off Wizard's "Trigger Probe" action -- the wizard computes the
+  // probe-radius-compensated true surface position (lib/machine/probing.ts)
+  // and hands it here just to commit + log it, same split as zeroWcsAxis
+  // above (compute at the call site, this just applies + records it).
+  const handleProbeSetAxis = useCallback((id: WcsId, axis: keyof Coordinates, value: number) => {
+    setWcsOffsetAxis(id, axis, value);
+    addLog(`${id} ${axis.toUpperCase()} set to ${value.toFixed(3)}mm via probe touch-off (tip Ø${probeTipDiameterMm.toFixed(3)}mm).`, 'info');
+  }, [setWcsOffsetAxis, addLog, probeTipDiameterMm]);
 
   // Keyboard listeners (F1 for help)
   useEffect(() => {
@@ -655,6 +681,7 @@ const App: React.FC = () => {
             wcsOffset={wcsOffsets[activeWcsId]}
             onZeroAxis={zeroWcsAxis}
             isPreparingCycle={isCycleLoadingOpen}
+            onOpenProbingWizard={() => setIsProbingWizardOpen(true)}
           />
         </div>
 
@@ -720,6 +747,20 @@ const App: React.FC = () => {
           onClose={() => setIsCollisionReportOpen(false)}
           report={collisionReport}
           activeTool={tools[0]}
+        />
+      )}
+      {isProbingWizardOpen && (
+        <ProbingWizard
+          onClose={() => setIsProbingWizardOpen(false)}
+          coords={coords}
+          onJog={jogAxis}
+          wcsId={activeWcsId}
+          onWcsIdChange={setActiveWcsId}
+          wcsOffsets={wcsOffsets}
+          onSetOffsetAxis={handleProbeSetAxis}
+          probeTipDiameterMm={probeTipDiameterMm}
+          onProbeTipDiameterChange={setProbeTipDiameterMm}
+          isLocked={status.isSimulating || isCycleLoadingOpen}
         />
       )}
       <SimulationLoadingModal isOpen={isCycleLoadingOpen} onComplete={handleCycleLoadingComplete} />

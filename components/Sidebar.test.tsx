@@ -41,6 +41,7 @@ function renderSidebar(
   const onOverridesChange = vi.fn();
   const onActiveWcsIdChange = vi.fn();
   const onZeroAxis = vi.fn();
+  const onOpenProbingWizard = vi.fn();
   const { container } = render(
     <Sidebar
       coords={coords}
@@ -60,9 +61,10 @@ function renderSidebar(
       wcsOffset={wcs.wcsOffset ?? zeroOffset}
       onZeroAxis={onZeroAxis}
       isPreparingCycle={isPreparingCycle}
+      onOpenProbingWizard={onOpenProbingWizard}
     />
   );
-  return { onCycleStart, onFeedHold, onReset, onCuttingParamsChange, onOverridesChange, onActiveWcsIdChange, onZeroAxis, container };
+  return { onCycleStart, onFeedHold, onReset, onCuttingParamsChange, onOverridesChange, onActiveWcsIdChange, onZeroAxis, onOpenProbingWizard, container };
 }
 
 describe('Sidebar', () => {
@@ -106,6 +108,13 @@ describe('Sidebar', () => {
     renderSidebar();
     expect(screen.getByText('FEED HOLD').closest('button')?.className).toContain('h-11');
     expect(screen.getByText('RESET').closest('button')?.className).toContain('h-11');
+  });
+
+  it('calls onOpenProbingWizard when the Touch-Off Wizard button is clicked', async () => {
+    const user = userEvent.setup();
+    const { onOpenProbingWizard } = renderSidebar();
+    await user.click(screen.getByLabelText('Open Touch-Off Wizard'));
+    expect(onOpenProbingWizard).toHaveBeenCalledTimes(1);
   });
 
   it('derives the footer EST TIME from the real program duration, not a hardcoded placeholder', () => {

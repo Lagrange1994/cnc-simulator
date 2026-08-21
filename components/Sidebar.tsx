@@ -33,6 +33,8 @@ interface SidebarProps {
   /** True during the ~1.5s fake-computing window between clicking CYCLE
    * START and the real simulation starting (see App.tsx's isCycleLoadingOpen). */
   isPreparingCycle: boolean;
+  /** Opens the Touch-Off Wizard (probe-compensated WCS setup). */
+  onOpenProbingWizard?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -41,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   cuttingParams, onCuttingParamsChange,
   overrides, onOverridesChange,
   activeWcsId, onActiveWcsIdChange, wcsOffset, onZeroAxis,
-  isPreparingCycle
+  isPreparingCycle, onOpenProbingWizard
 }) => {
   const isCuttingLocked = status.isSimulating || isPreparingCycle;
   const selectedMaterial = getMaterial(cuttingParams.materialId);
@@ -95,14 +97,25 @@ const Sidebar: React.FC<SidebarProps> = ({
             </h2>
             {/* Active Work Coordinate System -- the DRO below is relative to
                 whichever WCS is selected here, not raw machine position. */}
-            <select
-              value={activeWcsId}
-              onChange={(e) => onActiveWcsIdChange(e.target.value as WcsId)}
-              aria-label="Active work coordinate system"
-              className="h-6 bg-black/40 border border-cds-border-str/40 px-1.5 text-[10px] font-mono text-cds-interactive outline-none focus:border-cds-interactive"
-            >
-              {WCS_IDS.map(id => <option key={id} value={id}>{id}</option>)}
-            </select>
+            <div className="flex items-center gap-1.5">
+              <select
+                value={activeWcsId}
+                onChange={(e) => onActiveWcsIdChange(e.target.value as WcsId)}
+                aria-label="Active work coordinate system"
+                className="h-6 bg-black/40 border border-cds-border-str/40 px-1.5 text-[10px] font-mono text-cds-interactive outline-none focus:border-cds-interactive"
+              >
+                {WCS_IDS.map(id => <option key={id} value={id}>{id}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={onOpenProbingWizard}
+                title="Touch-Off Wizard (probe-compensated WCS setup)"
+                aria-label="Open Touch-Off Wizard"
+                className="size-6 flex items-center justify-center bg-black/40 border border-cds-border-str/40 text-cds-text-04 hover:text-cds-interactive hover:border-cds-interactive transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">center_focus_strong</span>
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-2 font-mono">
             <DROField label="X" value={workCoords.x} color="red-500" onZero={() => onZeroAxis('x')} zeroDisabled={isCuttingLocked} />
