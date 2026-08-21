@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { OeeCounters } from '../types';
 
 type FleetStatus = 'RUNNING' | 'IDLE' | 'ALARM' | 'OFFLINE';
 
@@ -70,6 +71,30 @@ const MachineCard: React.FC<{ machine: FleetMachine }> = ({ machine }) => {
   );
 };
 
+/** m:ss for under an hour, h:mm above it -- session/downtime durations in
+ * this app are realistically minutes-to-low-hours, not days. */
+function formatDuration(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+const OeeTile: React.FC<{ label: string; percent: number; isHeadline?: boolean }> = ({ label, percent, isHeadline }) => {
+  const color = percent >= 85 ? 'text-cds-success' : percent >= 60 ? 'text-cds-warning' : 'text-cds-error';
+  return (
+    <div className={`bg-black/30 border border-cds-border/30 p-4 chamfer-sm ${isHeadline ? 'border-cds-interactive/40' : ''}`}>
+      <div className="text-[9px] text-cds-text-04 uppercase tracking-widest mb-1">{label}</div>
+      <div className={`text-3xl font-mono font-semibold tabular-nums ${color}`}>{percent.toFixed(1)}<span className="text-lg">%</span></div>
+      <div className="w-full bg-black/40 h-1 mt-2 overflow-hidden">
+        <div className={`h-full transition-all duration-500 ${percent >= 85 ? 'bg-cds-success' : percent >= 60 ? 'bg-cds-warning' : 'bg-cds-error'}`} style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}></div>
+      </div>
+    </div>
+  );
+};
+
 interface FleetViewProps {
   onClose: () => void;
   /** MACHINE_01 is this session's actual simulator, so its card is built
@@ -80,9 +105,19 @@ interface FleetViewProps {
     completionPercent: number;
     activeLineLabel: string;
   };
+  /** OEE inputs -- all real, session-tracked App state (see App.tsx's oee/
+   * sessionElapsedMs/downtimeMs). FleetView derives Availability/
+   * Performance/Quality/OEE from these rather than App.tsx precomputing
+   * them, so the formulas live in one place next to what displays them. */
+  productionMetrics: {
+    oee: OeeCounters;
+    sessionElapsedMs: number;
+    downtimeMs: number;
+    currentFeedPct: number;
+  };
 }
 
-const FleetView: React.FC<FleetViewProps> = ({ onClose, liveMachine }) => {
+const FleetView: React.FC<FleetViewProps> = ({ onClose, liveMachine, productionMetrics }) => {
   const liveStatus: FleetStatus = liveMachine.hasActiveAlarm ? 'ALARM' : liveMachine.isSimulating ? 'RUNNING' : 'IDLE';
   const machines: FleetMachine[] = [
     {
@@ -105,6 +140,19 @@ const FleetView: React.FC<FleetViewProps> = ({ onClose, liveMachine }) => {
     acc[m.status] = (acc[m.status] ?? 0) + 1;
     return acc;
   }, {} as Record<FleetStatus, number>);
+
+  // OEE = Availability x Performance x Quality, the standard three-factor
+  // breakdown. Under a second of session time isn't enough to divide by
+  // meaningfully, so Availability reads 100% until then rather than
+  // swinging on rounding noise.
+  const { oee, sessionElapsedMs, downtimeMs, currentFeedPct } = productionMetrics;
+  const availability = sessionElapsedMs > 1000
+    ? Math.max(0, Math.min(100, ((sessionElapsedMs - downtimeMs) / sessionElapsedMs) * 100))
+    : 100;
+  const performance = Math.max(0, Math.min(100, currentFeedPct));
+  const totalParts = oee.cyclesCompleted + oee.cyclesScrapped;
+  const quality = totalParts > 0 ? (oee.cyclesCompleted / totalParts) * 100 : 100;
+  const oeeScore = (availability / 100) * (performance / 100) * (quality / 100) * 100;
 
   return (
     <div className="fixed inset-0 bg-cds-bg/90 backdrop-blur-2xl z-[150] flex items-center justify-center p-8 animate-in fade-in duration-300">
@@ -149,6 +197,48 @@ const FleetView: React.FC<FleetViewProps> = ({ onClose, liveMachine }) => {
             {machines.map(machine => (
               <MachineCard key={machine.id} machine={machine} />
             ))}
+          </div>
+
+          {/* Production Metrics -- OEE for MACHINE_01 this session. The
+              other four machines are illustrative telemetry (see
+              OTHER_MACHINES above), so OEE is scoped to the one machine
+              with real numbers behind it rather than faking a fleet-wide
+              average. */}
+          <div className="mt-10">
+            <h2 className="text-cds-text-01 font-semibold text-lg tracking-[0.1em] uppercase">Production Metrics -- MACHINE_01 (This Session)</h2>
+            <p className="text-[10px] text-cds-text-03 font-mono tracking-widest uppercase mt-1">
+              Availability x Performance x Quality -- tracked live since this session started
+            </p>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              <OeeTile label="OEE" percent={oeeScore} isHeadline />
+              <OeeTile label="Availability" percent={availability} />
+              <OeeTile label="Performance" percent={performance} />
+              <OeeTile label="Quality" percent={quality} />
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+              <div className="bg-black/20 border border-cds-border/20 p-3 chamfer-sm">
+                <div className="text-[8px] text-cds-text-04 uppercase tracking-widest">Session Uptime</div>
+                <div className="text-body-sm font-mono text-cds-text-01 mt-1">{formatDuration(sessionElapsedMs)}</div>
+              </div>
+              <div className="bg-black/20 border border-cds-border/20 p-3 chamfer-sm">
+                <div className="text-[8px] text-cds-text-04 uppercase tracking-widest">Alarm Downtime</div>
+                <div className={`text-body-sm font-mono mt-1 ${downtimeMs > 0 ? 'text-cds-error' : 'text-cds-text-01'}`}>{formatDuration(downtimeMs)}</div>
+              </div>
+              <div className="bg-black/20 border border-cds-border/20 p-3 chamfer-sm">
+                <div className="text-[8px] text-cds-text-04 uppercase tracking-widest">Cycles Started</div>
+                <div className="text-body-sm font-mono text-cds-text-01 mt-1">{oee.cyclesStarted}</div>
+              </div>
+              <div className="bg-black/20 border border-cds-border/20 p-3 chamfer-sm">
+                <div className="text-[8px] text-cds-text-04 uppercase tracking-widest">Parts Completed</div>
+                <div className="text-body-sm font-mono text-cds-success mt-1">{oee.cyclesCompleted}</div>
+              </div>
+              <div className="bg-black/20 border border-cds-border/20 p-3 chamfer-sm">
+                <div className="text-[8px] text-cds-text-04 uppercase tracking-widest">Parts Scrapped</div>
+                <div className={`text-body-sm font-mono mt-1 ${oee.cyclesScrapped > 0 ? 'text-cds-error' : 'text-cds-text-01'}`}>{oee.cyclesScrapped}</div>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -609,3 +609,103 @@ describe('Machine Fleet View', () => {
     expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
   });
 });
+
+/** Scopes to an OEE metric card/tile by its label, so assertions on its
+ * value don't collide with the same number showing on a different tile. */
+function metricScope(label: string): HTMLElement {
+  return screen.getByText(label).parentElement as HTMLElement;
+}
+
+describe('OEE / Production Metrics', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function openFleetView() {
+    fireEvent.click(screen.getByText('Connected: Machine_01'));
+  }
+
+  it('starts at zero cycles and 100% Quality/Availability/Performance before anything has run', () => {
+    render(<App />);
+    openFleetView();
+
+    expect(within(metricScope('Cycles Started')).getByText('0')).toBeInTheDocument();
+    expect(within(metricScope('Parts Completed')).getByText('0')).toBeInTheDocument();
+    expect(within(metricScope('Parts Scrapped')).getByText('0')).toBeInTheDocument();
+    expect(within(metricScope('Quality')).getByText(/100\.0/)).toBeInTheDocument();
+    expect(within(metricScope('Performance')).getByText(/100\.0/)).toBeInTheDocument();
+  });
+
+  it('counts a fresh CYCLE START once, but does not double-count a Feed-Hold resume', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    fireEvent.click(screen.getByText('FEED HOLD'));
+    clickCycleStartAndWaitForLoading(); // resume, not a new part
+
+    openFleetView();
+    expect(within(metricScope('Cycles Started')).getByText('1')).toBeInTheDocument();
+  });
+
+  it('counts a completed run and keeps Quality at 100%', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000);
+    });
+
+    openFleetView();
+    expect(within(metricScope('Parts Completed')).getByText('1')).toBeInTheDocument();
+    expect(within(metricScope('Quality')).getByText(/100\.0/)).toBeInTheDocument();
+  });
+
+  it('counts a mid-run RESET as scrapped and drops Quality below 100%', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(2000); // partway through, well short of completion
+    });
+    fireEvent.click(screen.getByText('RESET'));
+
+    openFleetView();
+    expect(within(metricScope('Parts Scrapped')).getByText('1')).toBeInTheDocument();
+    expect(within(metricScope('Parts Completed')).getByText('0')).toBeInTheDocument();
+    // 0 completed / (0 completed + 1 scrapped) = 0%.
+    expect(within(metricScope('Quality')).getByText(/0\.0/)).toBeInTheDocument();
+  });
+
+  it('does not scrap a part when RESET is pressed while idle (nothing was running)', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('RESET'));
+
+    openFleetView();
+    expect(within(metricScope('Parts Scrapped')).getByText('0')).toBeInTheDocument();
+  });
+
+  it('Performance reflects the current Feed Override percentage', () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Feed (mm/m) override slider'), { target: { value: '70' } });
+
+    openFleetView();
+    expect(within(metricScope('Performance')).getByText(/70\.0/)).toBeInTheDocument();
+  });
+
+  it('accumulates Alarm Downtime while the spindle-overspeed alarm is active, and Availability drops below 100%', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading(); // trips ALM-204 immediately (see Alarm/Fault History tests)
+    act(() => {
+      vi.advanceTimersByTime(1300); // the alarm is active this whole stretch, until M03 S12000 clears it
+    });
+
+    openFleetView();
+    const downtimeCard = metricScope('Alarm Downtime');
+    expect(within(downtimeCard).queryByText('0:00')).not.toBeInTheDocument();
+    expect(within(metricScope('Availability')).queryByText('100.0%')).not.toBeInTheDocument();
+  });
+});

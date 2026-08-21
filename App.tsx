@@ -13,7 +13,7 @@ import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
 import FleetView from './components/FleetView';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers } from './types';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters } from './types';
 import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
@@ -87,6 +87,14 @@ const App: React.FC = () => {
   const updateExecModifiers = useCallback((patch: Partial<ExecutionModifiers>) => {
     setExecModifiers(prev => ({ ...prev, ...patch }));
   }, []);
+  // OEE (FleetView.tsx "Production Metrics"): cyclesStarted/Completed/
+  // Scrapped are incremented at their real trigger points below (fresh
+  // CYCLE START, program completion, RESET mid-run). sessionElapsedMs
+  // ticks every second (effect further down); downtime is derived from
+  // `alarms` itself (see the memo further down), not tracked separately.
+  const [oee, setOee] = useState<OeeCounters>({ cyclesStarted: 0, cyclesCompleted: 0, cyclesScrapped: 0 });
+  const sessionStartRef = useRef(Date.now());
+  const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
   // The ~1.5s "computing" theater between CYCLE START and the real
   // simulation starting (SimulationLoadingModal). Its message-sequencing
   // timer is self-contained in the modal; only this open/closed boolean is
@@ -258,6 +266,7 @@ const App: React.FC = () => {
         const lastIndex = gcodeTimeline.entries.length - 1;
         const { feedRate, spindleRpm } = applyThrough(lastIndex);
         addLog("Program execution complete.", "success");
+        setOee(prev => ({ ...prev, cyclesCompleted: prev.cyclesCompleted + 1 }));
         setStatus(prev => ({
           ...prev,
           isSimulating: false,
@@ -347,6 +356,7 @@ const App: React.FC = () => {
     for (const c of conditions) {
       const active = next.find(a => a.kind === c.kind && a.status === 'active');
       if (c.tripped && !active) {
+        const now = Date.now();
         const alarm: Alarm = {
           id: Math.random().toString(36).substr(2, 9),
           kind: c.kind,
@@ -354,13 +364,15 @@ const App: React.FC = () => {
           message: c.message,
           severity: 'critical',
           status: 'active',
-          raisedAt: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          raisedAt: new Date(now).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          raisedAtMs: now,
         };
         next = [alarm, ...next];
         sideEffectLogs.push({ text: `${c.code}: ${c.message}`, level: 'error' });
       } else if (!c.tripped && active) {
+        const now = Date.now();
         next = next.map(a => a.id === active.id
-          ? { ...a, status: 'cleared' as const, clearedAt: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) }
+          ? { ...a, status: 'cleared' as const, clearedAt: new Date(now).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }), clearedAtMs: now }
           : a
         );
         sideEffectLogs.push({ text: `${c.code} cleared.`, level: 'success' });
@@ -377,14 +389,45 @@ const App: React.FC = () => {
 
   const hasActiveAlarm = alarms.some(a => a.status === 'active');
 
+  // OEE Availability clock: ticks the session-elapsed display every second.
+  // Runs for the app's whole lifetime (mount to unmount), independent of
+  // whether anything is simulating.
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setSessionElapsedMs(Date.now() - sessionStartRef.current);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  // OEE downtime: only alarm-active time counts as unplanned downtime (not
+  // every Feed Hold or Single-Block pause, which are deliberate operator
+  // control, not a fault). Derived from `alarms` itself -- each alarm's own
+  // raisedAtMs/clearedAtMs already record exactly this -- rather than a
+  // second start/stop timer racing to track the same transition; an
+  // in-progress alarm (no clearedAtMs yet) counts through "now". Recomputes
+  // every session tick too, so an ongoing alarm's downtime keeps advancing
+  // between alarm state changes, not just at raise/clear.
+  const downtimeMs = useMemo(
+    () => alarms.reduce((sum, a) => sum + ((a.clearedAtMs ?? Date.now()) - a.raisedAtMs), 0),
+    [alarms, sessionElapsedMs]
+  );
+
   const openHelpMenu = useCallback((tab: string = 'G-Code Dictionary') => {
     setHelpInitialTab(tab);
     setIsHelpMenuOpen(true);
   }, []);
 
   const handleCycleStart = useCallback(() => {
+    // A "cycle" is a fresh part, not every button press: Feed Hold/Single
+    // Block/Optional Stop all leave progress strictly between 0 and 100,
+    // and clicking CYCLE START then just resumes the same part -- only
+    // count it toward OEE when it's genuinely starting one from scratch.
+    const isFreshStart = status.progress <= 0 || status.progress >= 100;
     if (status.progress >= 100) {
       handleReset();
+    }
+    if (isFreshStart) {
+      setOee(prev => ({ ...prev, cyclesStarted: prev.cyclesStarted + 1 }));
     }
     // Seed the initial spindle RPM/feed from the selected Cutting Parameters
     // (material -> Vc -> RPM via the real formula, see lib/machine/materials.ts)
@@ -415,6 +458,12 @@ const App: React.FC = () => {
   }, [addLog]);
 
   const handleReset = useCallback(() => {
+    // Resetting a part that's strictly mid-run (not idle, not already
+    // finished) throws away real progress -- an aborted/scrapped part for
+    // OEE Quality. Resetting an idle or already-complete program isn't.
+    if (status.progress > 0 && status.progress < 100) {
+      setOee(prev => ({ ...prev, cyclesScrapped: prev.cyclesScrapped + 1 }));
+    }
     setStatus({
       spindleRpm: 0,
       feedRate: 1200,
@@ -426,7 +475,7 @@ const App: React.FC = () => {
     setCoords({ x: 0, y: 0, z: 10 });
     setActiveLineIndex(0);
     addLog("System Reset. Returning to program start.", "info");
-  }, [addLog]);
+  }, [addLog, status.progress]);
 
   const toggleEditMenu = () => {
     setIsEditMenuOpen(!isEditMenuOpen);
@@ -568,6 +617,12 @@ const App: React.FC = () => {
             hasActiveAlarm,
             completionPercent: status.progress,
             activeLineLabel: `line ${INITIAL_GCODE[status.activeLineIndex]?.lineNum ?? '001'} (${INITIAL_GCODE[status.activeLineIndex]?.command ?? 'G21'})`,
+          }}
+          productionMetrics={{
+            oee,
+            sessionElapsedMs,
+            downtimeMs,
+            currentFeedPct: overrides.feedPct,
           }}
         />
       )}

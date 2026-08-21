@@ -72,6 +72,17 @@ export interface LogMessage {
   text: string;
 }
 
+/** Session-tracked production counters behind the OEE panel (FleetView.tsx).
+ * A "cycle" starts at a fresh CYCLE START (progress 0, not a Feed
+ * Hold/Single Block/Optional Stop resume) and ends either at completed
+ * (M30 reached -- a good part) or scrapped (RESET pressed mid-run -- an
+ * aborted part). Quality = completed / (completed + scrapped). */
+export interface OeeCounters {
+  cyclesStarted: number;
+  cyclesCompleted: number;
+  cyclesScrapped: number;
+}
+
 /** Feed/Spindle override dials (Sidebar.tsx Status section) -- operator-set
  * percentage multipliers applied on top of the programmed feed rate/spindle
  * speed, exactly like the physical override knobs on a real CNC control.
@@ -103,8 +114,18 @@ export interface Alarm {
   message: string;
   severity: AlarmSeverity;
   status: AlarmStatus;
+  /** Display-formatted local time (HelpManager's System Logs table). */
   raisedAt: string;
   clearedAt?: string;
+  /** Epoch ms twins of the strings above -- the OEE panel's Availability
+   * derives Alarm Downtime straight from these (sum of clearedAtMs ??
+   * now() minus raisedAtMs across every alarm) instead of a second,
+   * independently-tracked start/stop timer. Two mechanisms racing to
+   * track the same "is an alarm active" transition is exactly how that
+   * second timer produced a multi-decade downtime reading in testing --
+   * one source of truth (this array) is the fix, not a tighter race. */
+  raisedAtMs: number;
+  clearedAtMs?: number;
 }
 
 /** Work Coordinate System id (G54-G59) -- which offset table entry is
