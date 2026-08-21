@@ -1,5 +1,5 @@
 
-import { GCodeLine, Tool, ViewSettings, CuttingParams, Overrides } from './types';
+import { GCodeLine, Tool, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets } from './types';
 import { MATERIALS, midpoint } from './lib/machine/materials';
 
 export const INITIAL_GCODE: GCodeLine[] = [
@@ -49,3 +49,14 @@ export const DEFAULT_OVERRIDES: Overrides = {
 export const OVERRIDE_PCT_MIN = 0;
 export const OVERRIDE_PCT_MAX = 150;
 export const OVERRIDE_PCT_STEP = 5;
+
+export const WCS_IDS: WcsId[] = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59'];
+export const DEFAULT_ACTIVE_WCS: WcsId = 'G54';
+export const DEFAULT_WCS_OFFSETS: WcsOffsets = {
+  G54: { x: 0, y: 0, z: 0 },
+  G55: { x: 0, y: 0, z: 0 },
+  G56: { x: 0, y: 0, z: 0 },
+  G57: { x: 0, y: 0, z: 0 },
+  G58: { x: 0, y: 0, z: 0 },
+  G59: { x: 0, y: 0, z: 0 },
+};

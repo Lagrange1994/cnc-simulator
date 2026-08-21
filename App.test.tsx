@@ -293,3 +293,33 @@ describe('App shell accessibility while a full-screen modal is open', () => {
     vi.useRealTimers();
   });
 });
+
+describe('Work Coordinate System', () => {
+  it('zeroing an axis makes the DRO read 0 for it, without disturbing the other axes', () => {
+    render(<App />);
+    // Initial machine position is {x:0, y:0, z:10} -- Z shows raw 0010.000.
+    expect(screen.getByText('0010.000')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Zero Z axis (set current position as work zero)'));
+
+    expect(screen.queryByText('0010.000')).not.toBeInTheDocument();
+    expect(screen.getAllByText('0000.000').length).toBeGreaterThanOrEqual(3); // X, Y, and now Z
+  });
+
+  it('logs the zero action with the active WCS id and axis', () => {
+    render(<App />);
+    fireEvent.click(screen.getByLabelText('Zero Z axis (set current position as work zero)'));
+    expect(screen.getByText(/G54 Z zeroed at current position/)).toBeInTheDocument();
+  });
+
+  it('keeps each Work Coordinate System\'s offset independent -- zeroing G54 does not affect G55', () => {
+    render(<App />);
+    fireEvent.click(screen.getByLabelText('Zero Z axis (set current position as work zero)'));
+    expect(screen.getAllByText('0000.000').length).toBeGreaterThanOrEqual(3);
+
+    fireEvent.change(screen.getByLabelText('Active work coordinate system'), { target: { value: 'G55' } });
+
+    // G55 was never zeroed -- Z reads the raw machine position again.
+    expect(screen.getByText('0010.000')).toBeInTheDocument();
+  });
+});

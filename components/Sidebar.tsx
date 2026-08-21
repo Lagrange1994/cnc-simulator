@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Coordinates, MachineStatus, Tool, CuttingParams, Overrides } from '../types';
+import { Coordinates, MachineStatus, Tool, CuttingParams, Overrides, WcsId } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
 import { MACHINE_SPEC, loadFillPercent } from '../lib/machine/spec';
 import { formatHoursMinutes } from '../lib/format';
 import { MATERIALS, getMaterial, midpoint, parseToolDiameterMm, estimateRpm, estimatePowerKw } from '../lib/machine/materials';
-import { OVERRIDE_PCT_MIN, OVERRIDE_PCT_MAX, OVERRIDE_PCT_STEP } from '../constants';
+import { OVERRIDE_PCT_MIN, OVERRIDE_PCT_MAX, OVERRIDE_PCT_STEP, WCS_IDS } from '../constants';
 import CuttingResult from './CuttingResult';
 import InfoTooltip from './InfoTooltip';
 
@@ -22,6 +22,14 @@ interface SidebarProps {
   onCuttingParamsChange: (patch: Partial<CuttingParams>) => void;
   overrides: Overrides;
   onOverridesChange: (patch: Partial<Overrides>) => void;
+  /** Active Work Coordinate System (G54-G59) and its stored offset. The DRO
+   * shows `coords` (machine position) minus this offset ("work position");
+   * onZeroAxis captures the current machine position into the offset for
+   * one axis, the real touch-off workflow. */
+  activeWcsId: WcsId;
+  onActiveWcsIdChange: (id: WcsId) => void;
+  wcsOffset: Coordinates;
+  onZeroAxis: (axis: keyof Coordinates) => void;
   /** True during the ~1.5s fake-computing window between clicking CYCLE
    * START and the real simulation starting (see App.tsx's isCycleLoadingOpen). */
   isPreparingCycle: boolean;
@@ -31,7 +39,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   coords, status, activeTool, nextTool, programSummary,
   onCycleStart, onFeedHold, onReset,
   cuttingParams, onCuttingParamsChange,
-  overrides, onOverridesChange, isPreparingCycle
+  overrides, onOverridesChange,
+  activeWcsId, onActiveWcsIdChange, wcsOffset, onZeroAxis,
+  isPreparingCycle
 }) => {
   const isCuttingLocked = status.isSimulating || isPreparingCycle;
   const selectedMaterial = getMaterial(cuttingParams.materialId);
@@ -42,6 +52,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   // same relationship a physical override dial has to a real DRO reading.
   const effectiveSpindleRpm = Math.round(status.spindleRpm * overrides.spindlePct / 100);
   const effectiveFeedRate = Math.round(status.feedRate * overrides.feedPct / 100);
+  // Work position = machine position minus the active WCS offset.
+  const workCoords: Coordinates = {
+    x: coords.x - wcsOffset.x,
+    y: coords.y - wcsOffset.y,
+    z: coords.z - wcsOffset.z,
+  };
 
   const handleMaterialChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const material = getMaterial(e.target.value);
@@ -73,13 +89,25 @@ const Sidebar: React.FC<SidebarProps> = ({
             (pre-flight summary) and Tooling detail are lower urgency, so
             they sit below and absorb the scroll. */}
         <div className="p-4 border-b border-cds-border bg-cds-layer-01">
-          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm" aria-hidden="true">my_location</span> Coordinates
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm" aria-hidden="true">my_location</span> Coordinates
+            </h2>
+            {/* Active Work Coordinate System -- the DRO below is relative to
+                whichever WCS is selected here, not raw machine position. */}
+            <select
+              value={activeWcsId}
+              onChange={(e) => onActiveWcsIdChange(e.target.value as WcsId)}
+              aria-label="Active work coordinate system"
+              className="h-6 bg-black/40 border border-cds-border-str/40 px-1.5 text-[10px] font-mono text-cds-interactive outline-none focus:border-cds-interactive"
+            >
+              {WCS_IDS.map(id => <option key={id} value={id}>{id}</option>)}
+            </select>
+          </div>
           <div className="grid grid-cols-1 gap-2 font-mono">
-            <DROField label="X" value={coords.x} color="red-500" />
-            <DROField label="Y" value={coords.y} color="cds-success" />
-            <DROField label="Z" value={coords.z} color="cds-interactive" />
+            <DROField label="X" value={workCoords.x} color="red-500" onZero={() => onZeroAxis('x')} zeroDisabled={isCuttingLocked} />
+            <DROField label="Y" value={workCoords.y} color="cds-success" onZero={() => onZeroAxis('y')} zeroDisabled={isCuttingLocked} />
+            <DROField label="Z" value={workCoords.z} color="cds-interactive" onZero={() => onZeroAxis('z')} zeroDisabled={isCuttingLocked} />
           </div>
         </div>
 
@@ -261,14 +289,39 @@ const Sidebar: React.FC<SidebarProps> = ({
   );
 };
 
-const DROField: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
+/** Fixed-width DRO string, sign-aware: padStart on a signed toFixed() string
+ * would push zeros in front of the minus sign ("-5.000" -> "00-5.000").
+ * Work coordinates go negative routinely once a WCS offset is set (Zero X
+ * on one side of the part puts the other side below zero), so this isn't a
+ * hypothetical -- format the magnitude, then prepend the sign. */
+function formatDroValue(value: number): string {
+  const sign = value < 0 ? '-' : '';
+  return sign + Math.abs(value).toFixed(3).padStart(sign ? 7 : 8, '0');
+}
+
+const DROField: React.FC<{
+  label: string; value: number; color: string;
+  onZero?: () => void; zeroDisabled?: boolean;
+}> = ({ label, value, color, onZero, zeroDisabled }) => (
   <div className="flex items-center justify-between bg-black/40 border border-cds-border/30 p-2 relative overflow-hidden group">
     <div className={`absolute left-0 top-0 bottom-0 w-1 bg-${color}`}></div>
     <span className="text-cds-text-03 text-base font-semibold">{label}</span>
     <span className={`text-2xl font-medium tracking-tight text-cds-text-01 group-hover:text-${color} transition-colors tabular-nums font-mono`}>
-      {value.toFixed(3).padStart(8, '0')}
+      {formatDroValue(value)}
     </span>
     <span className="text-label text-cds-text-03">mm</span>
+    {onZero && (
+      <button
+        type="button"
+        onClick={onZero}
+        disabled={zeroDisabled}
+        aria-label={`Zero ${label} axis (set current position as work zero)`}
+        title={`Zero ${label}`}
+        className="ml-1.5 shrink-0 text-[9px] font-mono px-1 py-0.5 border border-cds-border-str/40 text-cds-text-04 hover:text-cds-text-01 hover:border-cds-interactive transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        ZERO
+      </button>
+    )}
   </div>
 );
 

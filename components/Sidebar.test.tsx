@@ -2,10 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Sidebar from './Sidebar';
-import { Coordinates, MachineStatus, Tool, CuttingParams, Overrides } from '../types';
+import { Coordinates, MachineStatus, Tool, CuttingParams, Overrides, WcsId } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
-import { DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES } from '../constants';
+import { DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS } from '../constants';
 import { getMaterial, midpoint } from '../lib/machine/materials';
+
+const zeroOffset: Coordinates = { x: 0, y: 0, z: 0 };
 
 const coords: Coordinates = { x: 1, y: 2, z: 3 };
 const programSummary: ProgramSummary = {
@@ -29,13 +31,16 @@ function renderSidebar(
   statusOverride: Partial<MachineStatus> = {},
   cuttingParamsOverride: Partial<CuttingParams> = {},
   isPreparingCycle = false,
-  overridesOverride: Partial<Overrides> = {}
+  overridesOverride: Partial<Overrides> = {},
+  wcs: { activeWcsId?: WcsId; wcsOffset?: Coordinates } = {}
 ) {
   const onCycleStart = vi.fn();
   const onFeedHold = vi.fn();
   const onReset = vi.fn();
   const onCuttingParamsChange = vi.fn();
   const onOverridesChange = vi.fn();
+  const onActiveWcsIdChange = vi.fn();
+  const onZeroAxis = vi.fn();
   const { container } = render(
     <Sidebar
       coords={coords}
@@ -50,10 +55,14 @@ function renderSidebar(
       onCuttingParamsChange={onCuttingParamsChange}
       overrides={{ ...DEFAULT_OVERRIDES, ...overridesOverride }}
       onOverridesChange={onOverridesChange}
+      activeWcsId={wcs.activeWcsId ?? DEFAULT_ACTIVE_WCS}
+      onActiveWcsIdChange={onActiveWcsIdChange}
+      wcsOffset={wcs.wcsOffset ?? zeroOffset}
+      onZeroAxis={onZeroAxis}
       isPreparingCycle={isPreparingCycle}
     />
   );
-  return { onCycleStart, onFeedHold, onReset, onCuttingParamsChange, onOverridesChange, container };
+  return { onCycleStart, onFeedHold, onReset, onCuttingParamsChange, onOverridesChange, onActiveWcsIdChange, onZeroAxis, container };
 }
 
 describe('Sidebar', () => {
@@ -216,6 +225,75 @@ describe('Sidebar', () => {
       renderSidebar({ isSimulating: true });
       expect(screen.getByLabelText('Spindle (RPM) override slider')).not.toBeDisabled();
       expect(screen.getByLabelText('Feed (mm/m) override slider')).not.toBeDisabled();
+    });
+  });
+
+  describe('Work Coordinate System', () => {
+    it('shows machine position unchanged when the active WCS offset is zero', () => {
+      // coords = {x:1, y:2, z:3}, default offset {0,0,0} -> work position == machine position.
+      renderSidebar();
+      expect(screen.getByText('0001.000')).toBeInTheDocument();
+      expect(screen.getByText('0002.000')).toBeInTheDocument();
+      expect(screen.getByText('0003.000')).toBeInTheDocument();
+    });
+
+    it('subtracts the active WCS offset from machine position to show work position', () => {
+      // coords = {x:1, y:2, z:3}, offset {x:1, y:0, z:5} -> work = {0, 2, -2}.
+      renderSidebar({}, {}, false, {}, { wcsOffset: { x: 1, y: 0, z: 5 } });
+      expect(screen.getByText('0000.000')).toBeInTheDocument(); // X
+      expect(screen.getByText('0002.000')).toBeInTheDocument(); // Y
+      expect(screen.getByText('-002.000')).toBeInTheDocument(); // Z, negative
+    });
+
+    it('formats a negative work coordinate with the sign before the digits, not before a padding zero', () => {
+      // Regression test: naive `value.toFixed(3).padStart(8,'0')` on a
+      // negative number pads zeros in FRONT of the minus sign ("00-2.000").
+      renderSidebar({}, {}, false, {}, { wcsOffset: { x: 0, y: 0, z: 5 } });
+      expect(screen.queryByText('00-2.000')).not.toBeInTheDocument();
+      expect(screen.getByText('-002.000')).toBeInTheDocument();
+    });
+
+    it('calls onActiveWcsIdChange when a different WCS is selected', async () => {
+      const user = userEvent.setup();
+      const { onActiveWcsIdChange } = renderSidebar();
+      await user.selectOptions(screen.getByLabelText('Active work coordinate system'), 'G55');
+      expect(onActiveWcsIdChange).toHaveBeenCalledWith('G55');
+    });
+
+    it('defaults the active WCS selector to G54', () => {
+      renderSidebar();
+      expect(screen.getByLabelText<HTMLSelectElement>('Active work coordinate system').value).toBe('G54');
+    });
+
+    it('calls onZeroAxis with the correct axis when a ZERO button is clicked', async () => {
+      const user = userEvent.setup();
+      const { onZeroAxis } = renderSidebar();
+
+      await user.click(screen.getByLabelText('Zero X axis (set current position as work zero)'));
+      expect(onZeroAxis).toHaveBeenCalledWith('x');
+
+      await user.click(screen.getByLabelText('Zero Y axis (set current position as work zero)'));
+      expect(onZeroAxis).toHaveBeenCalledWith('y');
+
+      await user.click(screen.getByLabelText('Zero Z axis (set current position as work zero)'));
+      expect(onZeroAxis).toHaveBeenCalledWith('z');
+    });
+
+    it('disables the ZERO buttons while simulating, unlike the override sliders', () => {
+      renderSidebar({ isSimulating: true });
+      expect(screen.getByLabelText('Zero X axis (set current position as work zero)')).toBeDisabled();
+      expect(screen.getByLabelText('Zero Y axis (set current position as work zero)')).toBeDisabled();
+      expect(screen.getByLabelText('Zero Z axis (set current position as work zero)')).toBeDisabled();
+    });
+
+    it('disables the ZERO buttons during the fake-computing loading window too', () => {
+      renderSidebar({ isSimulating: false }, {}, true);
+      expect(screen.getByLabelText('Zero X axis (set current position as work zero)')).toBeDisabled();
+    });
+
+    it('does not disable the ZERO buttons when idle', () => {
+      renderSidebar({ isSimulating: false }, {}, false);
+      expect(screen.getByLabelText('Zero X axis (set current position as work zero)')).not.toBeDisabled();
     });
   });
 });

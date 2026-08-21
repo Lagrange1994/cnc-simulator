@@ -12,8 +12,8 @@ import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides } from './types';
-import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES } from './constants';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets } from './types';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
 
@@ -50,6 +50,14 @@ const App: React.FC = () => {
   const updateOverrides = useCallback((patch: Partial<Overrides>) => {
     setOverrides(prev => ({ ...prev, ...patch }));
   }, []);
+  // Work Coordinate System: `coords` (above) is raw machine position: the
+  // DRO shows machine position minus the active WCS's offset ("work
+  // position"), same relationship a real control's DRO has to its offset
+  // table. zeroAxis mirrors the real touch-off workflow -- jog to the part,
+  // hit Zero X, and the current machine position becomes that axis's offset
+  // so the DRO reads exactly 0 for it from then on.
+  const [activeWcsId, setActiveWcsId] = useState<WcsId>(DEFAULT_ACTIVE_WCS);
+  const [wcsOffsets, setWcsOffsets] = useState<WcsOffsets>(DEFAULT_WCS_OFFSETS);
   // The ~1.5s "computing" theater between CYCLE START and the real
   // simulation starting (SimulationLoadingModal). Its message-sequencing
   // timer is self-contained in the modal; only this open/closed boolean is
@@ -80,6 +88,14 @@ const App: React.FC = () => {
     };
     setLogs(prev => [...prev.slice(-49), newLog]);
   }, []);
+
+  const zeroWcsAxis = useCallback((axis: keyof Coordinates) => {
+    setWcsOffsets(prev => ({
+      ...prev,
+      [activeWcsId]: { ...prev[activeWcsId], [axis]: coords[axis] },
+    }));
+    addLog(`${activeWcsId} ${axis.toUpperCase()} zeroed at current position.`, 'info');
+  }, [activeWcsId, coords, addLog]);
 
   // Keyboard listeners (F1 for help)
   useEffect(() => {
@@ -373,6 +389,10 @@ const App: React.FC = () => {
             onCuttingParamsChange={updateCuttingParams}
             overrides={overrides}
             onOverridesChange={updateOverrides}
+            activeWcsId={activeWcsId}
+            onActiveWcsIdChange={setActiveWcsId}
+            wcsOffset={wcsOffsets[activeWcsId]}
+            onZeroAxis={zeroWcsAxis}
             isPreparingCycle={isCycleLoadingOpen}
           />
         </div>

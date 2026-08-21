@@ -51,6 +51,17 @@ export interface Overrides {
   spindlePct: number;
 }
 
+/** Work Coordinate System id (G54-G59) -- which offset table entry is
+ * currently active. The DRO shows position relative to whichever WCS is
+ * active, not raw machine position; see Sidebar.tsx's workCoords. */
+export type WcsId = 'G54' | 'G55' | 'G56' | 'G57' | 'G58' | 'G59';
+
+/** Per-axis offset for every WCS slot: how far that work zero sits from
+ * machine zero. Set via the DRO's per-axis "ZERO" buttons (Sidebar.tsx),
+ * which mirror the real touch-off workflow -- jog to the part, hit Zero X,
+ * the current machine position becomes that axis's offset. */
+export type WcsOffsets = Record<WcsId, Coordinates>;
+
 /** Cutting Parameters panel state (Sidebar.tsx) -- which material is
  * selected and the cutting speed/feed rate within that material's
  * recommended range. RPM and Power are derived, not stored (see
