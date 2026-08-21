@@ -12,8 +12,8 @@ import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams } from './types';
-import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS } from './constants';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides } from './types';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
 
@@ -43,6 +43,12 @@ const App: React.FC = () => {
   const [cuttingParams, setCuttingParams] = useState<CuttingParams>(DEFAULT_CUTTING_PARAMS);
   const updateCuttingParams = useCallback((patch: Partial<CuttingParams>) => {
     setCuttingParams(prev => ({ ...prev, ...patch }));
+  }, []);
+  // Feed/Spindle override dials -- unlike cuttingParams these are meant to be
+  // ridden live during a cut, so nothing disables them while isSimulating.
+  const [overrides, setOverrides] = useState<Overrides>(DEFAULT_OVERRIDES);
+  const updateOverrides = useCallback((patch: Partial<Overrides>) => {
+    setOverrides(prev => ({ ...prev, ...patch }));
   }, []);
   // The ~1.5s "computing" theater between CYCLE START and the real
   // simulation starting (SimulationLoadingModal). Its message-sequencing
@@ -149,9 +155,19 @@ const App: React.FC = () => {
     // Cycle Start resuming mid-program, not just a fresh start).
     lastLineIndexRef.current = status.activeLineIndex;
 
+    // The Feed Override dial scales real-time playback speed, exactly like
+    // riding the feed override on a real control changes how fast the axes
+    // actually move. `speedFactor` > 1 plays faster than programmed, < 1
+    // slower. Floored at 1% (not 0) so a dial dragged to 0% goes crawling-
+    // slow instead of dividing by zero below.
+    const speedFactor = Math.max(overrides.feedPct, 1) / 100;
+
     // Recompute the start time from current progress so Feed Hold -> Cycle
-    // Start resumes mid-program instead of restarting the clock.
-    const startedAt = Date.now() - (status.progress / 100) * gcodeTimeline.totalDurationMs;
+    // Start (and dragging the override mid-cut, which also re-enters this
+    // effect via the overrides.feedPct dependency) resumes mid-program at
+    // the new pace instead of restarting the clock.
+    const nominalElapsedAtStart = (status.progress / 100) * gcodeTimeline.totalDurationMs;
+    const startedAt = Date.now() - nominalElapsedAtStart / speedFactor;
 
     // Applies every timeline entry from just after the last-seen line
     // through targetIndex (inclusive), not just whichever entry the clock
@@ -175,9 +191,13 @@ const App: React.FC = () => {
     };
 
     const interval = setInterval(() => {
-      const elapsed = Date.now() - startedAt;
+      // Wall-clock time scaled back into the timeline's own nominal units
+      // (the units gcodeTimeline's entry timestamps and totalDurationMs are
+      // already expressed in) -- findActiveEntry and the completion check
+      // below both expect nominal time, not raw wall-clock elapsed.
+      const nominalElapsed = (Date.now() - startedAt) * speedFactor;
 
-      if (elapsed >= gcodeTimeline.totalDurationMs) {
+      if (nominalElapsed >= gcodeTimeline.totalDurationMs) {
         clearInterval(interval);
         const lastIndex = gcodeTimeline.entries.length - 1;
         const { feedRate, spindleRpm } = applyThrough(lastIndex);
@@ -193,8 +213,8 @@ const App: React.FC = () => {
         return;
       }
 
-      const entry = findActiveEntry(gcodeTimeline, elapsed);
-      const nextProgress = Math.round((elapsed / gcodeTimeline.totalDurationMs) * 1000) / 10;
+      const entry = findActiveEntry(gcodeTimeline, nominalElapsed);
+      const nextProgress = Math.round((nominalElapsed / gcodeTimeline.totalDurationMs) * 1000) / 10;
       const lineChanged = entry.index !== lastLineIndexRef.current;
 
       if (lineChanged) {
@@ -212,7 +232,7 @@ const App: React.FC = () => {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [status.isSimulating, gcodeTimeline, addLog]);
+  }, [status.isSimulating, gcodeTimeline, addLog, overrides.feedPct]);
 
   useEffect(() => {
     setActiveLineIndex(status.activeLineIndex);
@@ -351,6 +371,8 @@ const App: React.FC = () => {
             onReset={handleReset}
             cuttingParams={cuttingParams}
             onCuttingParamsChange={updateCuttingParams}
+            overrides={overrides}
+            onOverridesChange={updateOverrides}
             isPreparingCycle={isCycleLoadingOpen}
           />
         </div>

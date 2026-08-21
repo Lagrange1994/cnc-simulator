@@ -157,6 +157,49 @@ describe('App simulation loop', () => {
     const decimals = (match![1].split('.')[1] || '').length;
     expect(decimals).toBeLessThanOrEqual(1);
   });
+
+  it('plays back 1.5x faster when the Feed Override slider is set to 150% before the run starts', () => {
+    // 150% is the slider's max (OVERRIDE_PCT_MAX) -- using a value above
+    // that would silently clamp in the DOM and understate the effect.
+    const { unmount } = render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    const baselinePercent = completionPercent();
+    unmount();
+
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    fireEvent.change(screen.getByLabelText('Feed (mm/m) override slider'), { target: { value: '150' } });
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    const fastPercent = completionPercent();
+
+    // Expect ~1.5x, with slack for 100ms tick-boundary rounding.
+    expect(fastPercent).toBeGreaterThan(baselinePercent * 1.3);
+  });
+
+  it('re-paces an in-progress run when Feed Override changes mid-cut, without resetting progress', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    const beforeChange = completionPercent();
+    expect(beforeChange).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByLabelText('Feed (mm/m) override slider'), { target: { value: '50' } });
+    // Re-entering the pacing effect must not restart the clock -- progress
+    // should hold steady (or tick forward), never jump back toward 0.
+    expect(completionPercent()).toBeGreaterThanOrEqual(beforeChange);
+
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(completionPercent()).toBeGreaterThanOrEqual(beforeChange);
+  });
 });
 
 describe('CYCLE START fake-computing loading sequence', () => {

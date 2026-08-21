@@ -1,5 +1,5 @@
 
-import { GCodeLine, Tool, ViewSettings, CuttingParams } from './types';
+import { GCodeLine, Tool, ViewSettings, CuttingParams, Overrides } from './types';
 import { MATERIALS, midpoint } from './lib/machine/materials';
 
 export const INITIAL_GCODE: GCodeLine[] = [
@@ -38,3 +38,14 @@ export const DEFAULT_CUTTING_PARAMS: CuttingParams = {
   vcMPerMin: midpoint(MATERIALS[0].vcRangeMPerMin),
   feedMmPerMin: midpoint(MATERIALS[0].feedRangeMmPerMin),
 };
+
+export const DEFAULT_OVERRIDES: Overrides = {
+  feedPct: 100,
+  spindlePct: 100,
+};
+
+// Real controls typically allow 0-150% (some go to 200%); 5% steps match the
+// detents on a physical override dial.
+export const OVERRIDE_PCT_MIN = 0;
+export const OVERRIDE_PCT_MAX = 150;
+export const OVERRIDE_PCT_STEP = 5;

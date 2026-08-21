@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Sidebar from './Sidebar';
-import { Coordinates, MachineStatus, Tool, CuttingParams } from '../types';
+import { Coordinates, MachineStatus, Tool, CuttingParams, Overrides } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
-import { DEFAULT_CUTTING_PARAMS } from '../constants';
+import { DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES } from '../constants';
 import { getMaterial, midpoint } from '../lib/machine/materials';
 
 const coords: Coordinates = { x: 1, y: 2, z: 3 };
@@ -28,12 +28,14 @@ const nextTool: Tool = { id: 'T2', name: 'Ball Nose 3mm', diameter: '3.0mm', len
 function renderSidebar(
   statusOverride: Partial<MachineStatus> = {},
   cuttingParamsOverride: Partial<CuttingParams> = {},
-  isPreparingCycle = false
+  isPreparingCycle = false,
+  overridesOverride: Partial<Overrides> = {}
 ) {
   const onCycleStart = vi.fn();
   const onFeedHold = vi.fn();
   const onReset = vi.fn();
   const onCuttingParamsChange = vi.fn();
+  const onOverridesChange = vi.fn();
   const { container } = render(
     <Sidebar
       coords={coords}
@@ -46,10 +48,12 @@ function renderSidebar(
       onReset={onReset}
       cuttingParams={{ ...DEFAULT_CUTTING_PARAMS, ...cuttingParamsOverride }}
       onCuttingParamsChange={onCuttingParamsChange}
+      overrides={{ ...DEFAULT_OVERRIDES, ...overridesOverride }}
+      onOverridesChange={onOverridesChange}
       isPreparingCycle={isPreparingCycle}
     />
   );
-  return { onCycleStart, onFeedHold, onReset, onCuttingParamsChange, container };
+  return { onCycleStart, onFeedHold, onReset, onCuttingParamsChange, onOverridesChange, container };
 }
 
 describe('Sidebar', () => {
@@ -172,4 +176,53 @@ describe('Sidebar', () => {
     renderSidebar();
     expect(screen.getByText('Concept')).toBeInTheDocument();
   });
+
+  describe('Feed/Spindle override', () => {
+    it('scales the displayed Spindle/Feed values by the override percentage', () => {
+      renderSidebar(
+        { spindleRpm: 6000, feedRate: 1500 },
+        {},
+        false,
+        { spindlePct: 50, feedPct: 200 }
+      );
+      // 6000 * 50% = 3000; 1500 * 200% = 3000
+      expect(within(liveCard('Spindle (RPM)')).getByText('3,000')).toBeInTheDocument();
+      expect(within(liveCard('Feed (mm/m)')).getByText('3000')).toBeInTheDocument();
+    });
+
+    it('calls onOverridesChange with the new percentage when a slider moves', () => {
+      const { onOverridesChange } = renderSidebar();
+      fireEvent.change(screen.getByLabelText('Spindle (RPM) override slider'), { target: { value: '75' } });
+      expect(onOverridesChange).toHaveBeenCalledWith({ spindlePct: 75 });
+
+      fireEvent.change(screen.getByLabelText('Feed (mm/m) override slider'), { target: { value: '125' } });
+      expect(onOverridesChange).toHaveBeenCalledWith({ feedPct: 125 });
+    });
+
+    it('resets an override to 100% when its reset button is clicked, and disables that button at 100%', async () => {
+      const user = userEvent.setup();
+      const { onOverridesChange } = renderSidebar({}, {}, false, { spindlePct: 60 });
+
+      const spindleReset = screen.getByLabelText('Reset Spindle (RPM) override to 100%');
+      expect(spindleReset).not.toBeDisabled();
+      await user.click(spindleReset);
+      expect(onOverridesChange).toHaveBeenCalledWith({ spindlePct: 100 });
+
+      // Feed override is still at the default 100% -> its reset button is disabled.
+      expect(screen.getByLabelText('Reset Feed (mm/m) override to 100%')).toBeDisabled();
+    });
+
+    it('does not disable the override sliders while simulating, unlike the Cutting Parameters controls', () => {
+      renderSidebar({ isSimulating: true });
+      expect(screen.getByLabelText('Spindle (RPM) override slider')).not.toBeDisabled();
+      expect(screen.getByLabelText('Feed (mm/m) override slider')).not.toBeDisabled();
+    });
+  });
 });
+
+/** Scopes to a live Status card (Spindle/Feed) by its label text, so
+ * assertions don't accidentally match the same number elsewhere (e.g. the
+ * Cutting Result panel's Peak Spindle stat). */
+function liveCard(label: string) {
+  return screen.getByText(label).closest('div')!.parentElement!;
+}

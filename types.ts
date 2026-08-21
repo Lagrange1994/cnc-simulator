@@ -39,6 +39,18 @@ export interface LogMessage {
   text: string;
 }
 
+/** Feed/Spindle override dials (Sidebar.tsx Status section) -- operator-set
+ * percentage multipliers applied on top of the programmed feed rate/spindle
+ * speed, exactly like the physical override knobs on a real CNC control.
+ * Unlike CuttingParams (locked out while simulating), these stay live during
+ * a cut -- riding the feed override mid-cut is the whole point of the dial.
+ * feedPct also scales the simulation's real-time playback speed (see
+ * App.tsx's pacing effect); spindlePct only scales the displayed RPM. */
+export interface Overrides {
+  feedPct: number;
+  spindlePct: number;
+}
+
 /** Cutting Parameters panel state (Sidebar.tsx) -- which material is
  * selected and the cutting speed/feed rate within that material's
  * recommended range. RPM and Power are derived, not stored (see

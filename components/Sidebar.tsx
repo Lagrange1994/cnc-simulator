@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Coordinates, MachineStatus, Tool, CuttingParams } from '../types';
+import { Coordinates, MachineStatus, Tool, CuttingParams, Overrides } from '../types';
 import { ProgramSummary } from '../lib/gcode/parser';
 import { MACHINE_SPEC, loadFillPercent } from '../lib/machine/spec';
 import { formatHoursMinutes } from '../lib/format';
 import { MATERIALS, getMaterial, midpoint, parseToolDiameterMm, estimateRpm, estimatePowerKw } from '../lib/machine/materials';
+import { OVERRIDE_PCT_MIN, OVERRIDE_PCT_MAX, OVERRIDE_PCT_STEP } from '../constants';
 import CuttingResult from './CuttingResult';
 import InfoTooltip from './InfoTooltip';
 
@@ -19,6 +20,8 @@ interface SidebarProps {
   onReset: () => void;
   cuttingParams: CuttingParams;
   onCuttingParamsChange: (patch: Partial<CuttingParams>) => void;
+  overrides: Overrides;
+  onOverridesChange: (patch: Partial<Overrides>) => void;
   /** True during the ~1.5s fake-computing window between clicking CYCLE
    * START and the real simulation starting (see App.tsx's isCycleLoadingOpen). */
   isPreparingCycle: boolean;
@@ -27,13 +30,18 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({
   coords, status, activeTool, nextTool, programSummary,
   onCycleStart, onFeedHold, onReset,
-  cuttingParams, onCuttingParamsChange, isPreparingCycle
+  cuttingParams, onCuttingParamsChange,
+  overrides, onOverridesChange, isPreparingCycle
 }) => {
   const isCuttingLocked = status.isSimulating || isPreparingCycle;
   const selectedMaterial = getMaterial(cuttingParams.materialId);
   const toolDiameterMm = parseToolDiameterMm(activeTool.diameter);
   const estimatedRpm = estimateRpm(cuttingParams.vcMPerMin, toolDiameterMm);
   const estimatedPowerKw = estimatePowerKw(selectedMaterial.cuttingForceN, cuttingParams.vcMPerMin);
+  // Effective (actual) speed shown on the DRO = programmed value x override%,
+  // same relationship a physical override dial has to a real DRO reading.
+  const effectiveSpindleRpm = Math.round(status.spindleRpm * overrides.spindlePct / 100);
+  const effectiveFeedRate = Math.round(status.feedRate * overrides.feedPct / 100);
 
   const handleMaterialChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const material = getMaterial(e.target.value);
@@ -64,11 +72,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             (1280x720 laptops clip anything below ~470px here). CuttingResult
             (pre-flight summary) and Tooling detail are lower urgency, so
             they sit below and absorb the scroll. */}
-        <div className="p-6 border-b border-cds-border bg-cds-layer-01">
-          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <div className="p-4 border-b border-cds-border bg-cds-layer-01">
+          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span className="material-symbols-outlined text-sm" aria-hidden="true">my_location</span> Coordinates
           </h2>
-          <div className="grid grid-cols-1 gap-3 font-mono">
+          <div className="grid grid-cols-1 gap-2 font-mono">
             <DROField label="X" value={coords.x} color="red-500" />
             <DROField label="Y" value={coords.y} color="cds-success" />
             <DROField label="Z" value={coords.z} color="cds-interactive" />
@@ -76,13 +84,27 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Machine Status */}
-        <div className="p-6 border-b border-cds-border">
-          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <div className="p-4 border-b border-cds-border">
+          <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span className="material-symbols-outlined text-sm" aria-hidden="true">speed</span> Status
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <StatusCard label="Spindle (RPM)" value={status.spindleRpm.toLocaleString()} fillPercent={loadFillPercent(status.spindleRpm, MACHINE_SPEC.maxSpindleRpm)} color="white" />
-            <StatusCard label="Feed (mm/m)"   value={status.feedRate}                   fillPercent={loadFillPercent(status.feedRate, MACHINE_SPEC.maxFeedRateMmPerMin)} color="interactive" />
+          {/* Override sliders are deliberately NOT gated by isCuttingLocked:
+              riding the override live during a cut is the entire point of the
+              dial on a real control (unlike Cutting Parameters below, which
+              locks because swapping material mid-cut makes no physical sense). */}
+          <div className="grid grid-cols-2 gap-3">
+            <StatusCard
+              label="Spindle (RPM)" value={effectiveSpindleRpm.toLocaleString()}
+              fillPercent={loadFillPercent(effectiveSpindleRpm, MACHINE_SPEC.maxSpindleRpm)} color="white"
+              overridePct={overrides.spindlePct} overrideLabel="OVR"
+              onOverrideChange={(v) => onOverridesChange({ spindlePct: v })}
+            />
+            <StatusCard
+              label="Feed (mm/m)" value={effectiveFeedRate}
+              fillPercent={loadFillPercent(effectiveFeedRate, MACHINE_SPEC.maxFeedRateMmPerMin)} color="interactive"
+              overridePct={overrides.feedPct} overrideLabel="OVR"
+              onOverrideChange={(v) => onOverridesChange({ feedPct: v })}
+            />
           </div>
         </div>
 
@@ -240,29 +262,69 @@ const Sidebar: React.FC<SidebarProps> = ({
 };
 
 const DROField: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
-  <div className="flex items-center justify-between bg-black/40 border border-cds-border/30 p-3 relative overflow-hidden group">
+  <div className="flex items-center justify-between bg-black/40 border border-cds-border/30 p-2 relative overflow-hidden group">
     <div className={`absolute left-0 top-0 bottom-0 w-1 bg-${color}`}></div>
-    <span className="text-cds-text-03 text-lg font-semibold">{label}</span>
-    <span className={`text-3xl font-medium tracking-tight text-cds-text-01 group-hover:text-${color} transition-colors tabular-nums font-mono`}>
+    <span className="text-cds-text-03 text-base font-semibold">{label}</span>
+    <span className={`text-2xl font-medium tracking-tight text-cds-text-01 group-hover:text-${color} transition-colors tabular-nums font-mono`}>
       {value.toFixed(3).padStart(8, '0')}
     </span>
     <span className="text-label text-cds-text-03">mm</span>
   </div>
 );
 
-const StatusCard: React.FC<{ label: string; value: string | number; fillPercent: number; color: string }> = ({ label, value, fillPercent, color }) => (
-  <div className="bg-cds-layer-02 p-3 border border-cds-border/30 overflow-hidden">
-    <div className="text-[10px] uppercase text-cds-text-03 mb-1 truncate">{label}</div>
-    <div className="flex items-baseline gap-1">
-      <span className="text-xl font-mono text-cds-text-01 tabular-nums">{value}</span>
+/** Status card showing a live DRO value (Spindle/Feed) plus, when
+ * `overridePct`/`onOverrideChange` are given, a compact override slider
+ * paired directly under it -- one card per metric, not a separate row, so
+ * this stays inside the sidebar's above-the-fold budget (see Sidebar's
+ * component-level comment on DRO/Status ordering). Deliberately has no
+ * `disabled` prop on the slider: riding the override live during a cut is
+ * the entire point of the dial on a real control. */
+const StatusCard: React.FC<{
+  label: string; value: string | number; fillPercent: number; color: string;
+  overridePct?: number; overrideLabel?: string; onOverrideChange?: (value: number) => void;
+}> = ({ label, value, fillPercent, color, overridePct, overrideLabel, onOverrideChange }) => {
+  const isModified = overridePct !== undefined && overridePct !== 100;
+  return (
+    <div className="bg-cds-layer-02 p-2 border border-cds-border/30 overflow-hidden">
+      <div className="text-[10px] uppercase text-cds-text-03 mb-0.5 truncate">{label}</div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-mono text-cds-text-01 tabular-nums">{value}</span>
+      </div>
+      <div className="w-full bg-black/40 h-1 mt-1.5 overflow-hidden">
+        <div
+          className={`h-full transition-all duration-500 ${color === 'interactive' ? 'bg-cds-interactive' : 'bg-cds-text-01'}`}
+          style={{ width: `${fillPercent}%` }}
+        ></div>
+      </div>
+      {overridePct !== undefined && onOverrideChange && (
+        <div className="mt-1.5 pt-1.5 border-t border-white/5 flex items-center gap-1.5">
+          <span className="text-[8px] uppercase text-cds-text-04 shrink-0">{overrideLabel}</span>
+          <input
+            type="range"
+            min={OVERRIDE_PCT_MIN}
+            max={OVERRIDE_PCT_MAX}
+            step={OVERRIDE_PCT_STEP}
+            value={overridePct}
+            onChange={(e) => onOverrideChange(Number(e.target.value))}
+            aria-label={`${label} override slider`}
+            className="w-full accent-[#4589ff]"
+          />
+          <span className={`text-[10px] font-mono tabular-nums shrink-0 ${isModified ? 'text-cds-warning' : 'text-cds-text-04'}`}>
+            {overridePct}%
+          </span>
+          <button
+            type="button"
+            onClick={() => onOverrideChange(100)}
+            disabled={!isModified}
+            aria-label={`Reset ${label} override to 100%`}
+            className="text-[8px] font-mono px-1 shrink-0 border border-cds-border-str/40 text-cds-text-04 hover:text-cds-text-01 hover:border-cds-interactive transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            100%
+          </button>
+        </div>
+      )}
     </div>
-    <div className="w-full bg-black/40 h-1 mt-2 overflow-hidden">
-      <div
-        className={`h-full transition-all duration-500 ${color === 'interactive' ? 'bg-cds-interactive' : 'bg-cds-text-01'}`}
-        style={{ width: `${fillPercent}%` }}
-      ></div>
-    </div>
-  </div>
-);
+  );
+};
 
 export default Sidebar;
