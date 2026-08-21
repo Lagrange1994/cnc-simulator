@@ -149,6 +149,28 @@ export interface CuttingParams {
   feedMmPerMin: number;
 }
 
+/** Job/Work-Order Queue (JobQueue.tsx) -- a shop-floor queue of batches to
+ * run through the *same* loaded program (PROJECT_ALPHA_V2.NC -- there's only
+ * one program in this app, see App.tsx's INITIAL_GCODE), each batch tracked
+ * as its own work order with its own quantity/genealogy. This mirrors a real
+ * workflow: the same NC file cutting several distinct customer orders back
+ * to back, each counted separately even though the toolpath is identical.
+ * Exactly one job is 'active' at a time (the one this session's Cycle
+ * Start/Reset outcomes are credited to); 'queued' jobs wait behind it;
+ * 'done' means quantity was fully produced (completed + scrapped); 'skipped'
+ * is an operator override that retires a job without finishing it. */
+export type JobStatus = 'queued' | 'active' | 'done' | 'skipped';
+
+export interface Job {
+  id: string;
+  partName: string;
+  programName: string;
+  quantity: number;
+  completedQty: number;
+  scrappedQty: number;
+  status: JobStatus;
+}
+
 export type RenderMode = 'SOLID' | 'WIREFRAME' | 'X-RAY' | 'PLASTIC';
 export type Projection = 'PERSPECTIVE' | 'ORTHOGRAPHIC';
 

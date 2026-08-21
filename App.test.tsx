@@ -709,3 +709,154 @@ describe('OEE / Production Metrics', () => {
     expect(within(metricScope('Availability')).queryByText('100.0%')).not.toBeInTheDocument();
   });
 });
+
+/** Scopes to a job's card by its part name, so assertions on quantity/status
+ * text don't collide with the same numbers on a different job's card. */
+function jobCard(partName: string): HTMLElement {
+  return screen.getByText(partName).closest('div.chamfer-md') as HTMLElement;
+}
+
+describe('Job Queue', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function openJobQueue() {
+    fireEvent.click(screen.getByLabelText(/Job Queue/));
+  }
+
+  it('opens from the header button and lists the default work orders, with Bracket Rev C active', () => {
+    render(<App />);
+    openJobQueue();
+
+    expect(screen.getByText('JOB QUEUE')).toBeInTheDocument();
+    expect(within(jobCard('Bracket Rev C')).getByText('ACTIVE')).toBeInTheDocument();
+    expect(within(jobCard('Mounting Plate')).getByText('QUEUED')).toBeInTheDocument();
+    expect(within(jobCard('Spacer Ring')).getByText('QUEUED')).toBeInTheDocument();
+  });
+
+  it('shows the pending job count as a badge on the header button', () => {
+    render(<App />);
+    expect(screen.getByLabelText('Job Queue, 3 pending')).toBeInTheDocument();
+  });
+
+  it('credits a completed run to the active job', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000); // full program duration, see OEE tests above
+    });
+
+    openJobQueue();
+    expect(within(jobCard('Bracket Rev C')).getByText(/4 done/)).toBeInTheDocument();
+  });
+
+  it('credits a mid-run RESET to the active job as scrapped', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    fireEvent.click(screen.getByText('RESET'));
+
+    openJobQueue();
+    expect(within(jobCard('Bracket Rev C')).getByText(/3 done, 1 scrapped/)).toBeInTheDocument();
+  });
+
+  it('does not credit any job when RESET is pressed while idle', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('RESET'));
+
+    openJobQueue();
+    expect(within(jobCard('Bracket Rev C')).getByText(/3 done \/ 12/)).toBeInTheDocument();
+  });
+
+  it('skipping the active job retires it and promotes the next queued job to active', () => {
+    render(<App />);
+    openJobQueue();
+
+    fireEvent.click(within(jobCard('Bracket Rev C')).getByText('Skip'));
+
+    expect(within(jobCard('Bracket Rev C')).getByText('SKIPPED')).toBeInTheDocument();
+    expect(within(jobCard('Mounting Plate')).getByText('ACTIVE')).toBeInTheDocument();
+  });
+
+  it('a subsequent completed run is now credited to the newly-promoted active job', () => {
+    render(<App />);
+    openJobQueue();
+    fireEvent.click(within(jobCard('Bracket Rev C')).getByText('Skip'));
+    fireEvent.click(screen.getByLabelText('Close Job Queue'));
+
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000);
+    });
+
+    openJobQueue();
+    expect(within(jobCard('Mounting Plate')).getByText(/1 done/)).toBeInTheDocument();
+  });
+
+  it('cannot remove the active job, but can remove a queued job', () => {
+    render(<App />);
+    openJobQueue();
+
+    expect(within(jobCard('Bracket Rev C')).getByText('Remove')).toBeDisabled();
+
+    fireEvent.click(within(jobCard('Mounting Plate')).getByText('Remove'));
+    expect(screen.queryByText('Mounting Plate')).not.toBeInTheDocument();
+    expect(screen.getByText('Spacer Ring')).toBeInTheDocument();
+  });
+
+  it('a job reaching its full quantity is marked done and does not promote another job when none remain queued', () => {
+    render(<App />);
+    openJobQueue();
+    // Clear the queue down to nothing active/queued.
+    fireEvent.click(within(jobCard('Bracket Rev C')).getByText('Skip'));
+    fireEvent.click(within(jobCard('Mounting Plate')).getByText('Skip'));
+    fireEvent.click(within(jobCard('Spacer Ring')).getByText('Skip'));
+
+    fireEvent.change(screen.getByLabelText('Part Name'), { target: { value: 'One-Off Fixture' } });
+    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '1' } });
+    fireEvent.click(screen.getByText('+ Add to Queue'));
+
+    expect(within(jobCard('One-Off Fixture')).getByText('ACTIVE')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Close Job Queue'));
+
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(20000);
+    });
+
+    openJobQueue();
+    expect(within(jobCard('One-Off Fixture')).getByText('DONE')).toBeInTheDocument();
+    expect(within(jobCard('One-Off Fixture')).getByText(/1 done \/ 1/)).toBeInTheDocument();
+  });
+
+  it('a newly-added job queues behind an existing active job instead of jumping ahead', () => {
+    render(<App />);
+    openJobQueue();
+
+    fireEvent.change(screen.getByLabelText('Part Name'), { target: { value: 'Rush Order' } });
+    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } });
+    fireEvent.click(screen.getByText('+ Add to Queue'));
+
+    expect(within(jobCard('Rush Order')).getByText('QUEUED')).toBeInTheDocument();
+    expect(within(jobCard('Bracket Rev C')).getByText('ACTIVE')).toBeInTheDocument();
+  });
+
+  it('closes and hides the app shell from the accessibility tree while open, like the other full-screen modals', () => {
+    render(<App />);
+    openJobQueue();
+
+    const shellHeading = screen.getByText('Super High Tech');
+    expect(shellHeading.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Close Job Queue'));
+    expect(screen.queryByText('JOB QUEUE')).not.toBeInTheDocument();
+    expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
+  });
+});

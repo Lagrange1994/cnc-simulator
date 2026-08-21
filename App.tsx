@@ -13,8 +13,9 @@ import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
 import FleetView from './components/FleetView';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters } from './types';
-import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS } from './constants';
+import JobQueue from './components/JobQueue';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters, Job } from './types';
+import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS, DEFAULT_JOB_QUEUE } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
 import { MACHINE_SPEC } from './lib/machine/spec';
@@ -42,6 +43,7 @@ const App: React.FC = () => {
   const [helpInitialTab, setHelpInitialTab] = useState('G-Code Dictionary');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFleetViewOpen, setIsFleetViewOpen] = useState(false);
+  const [isJobQueueOpen, setIsJobQueueOpen] = useState(false);
   const [viewSettings, setViewSettings] = useState<ViewSettings>(DEFAULT_VIEW_SETTINGS);
   const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
     setViewSettings(prev => ({ ...prev, ...patch }));
@@ -95,6 +97,64 @@ const App: React.FC = () => {
   const [oee, setOee] = useState<OeeCounters>({ cyclesStarted: 0, cyclesCompleted: 0, cyclesScrapped: 0 });
   const sessionStartRef = useRef(Date.now());
   const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
+  // Job Queue (JobQueue.tsx): work orders queued behind the one loaded
+  // program. recordJobOutcome is a pure functional setState updater (no
+  // addLog call inside it, unlike the alarm effect above) so it's safe to
+  // call directly from the completion branch and handleReset below without
+  // the impure-updater duplicate-log risk documented on the alarm effect.
+  const [jobQueue, setJobQueue] = useState<Job[]>(DEFAULT_JOB_QUEUE);
+  const recordJobOutcome = useCallback((outcome: 'completed' | 'scrapped') => {
+    setJobQueue(prev => {
+      const activeIdx = prev.findIndex(j => j.status === 'active');
+      if (activeIdx === -1) return prev;
+      const job = prev[activeIdx];
+      const completedQty = outcome === 'completed' ? job.completedQty + 1 : job.completedQty;
+      const scrappedQty = outcome === 'scrapped' ? job.scrappedQty + 1 : job.scrappedQty;
+      const isDone = completedQty + scrappedQty >= job.quantity;
+      const next = [...prev];
+      next[activeIdx] = { ...job, completedQty, scrappedQty, status: isDone ? 'done' : 'active' };
+      if (isDone) {
+        const nextQueuedIdx = next.findIndex((j, i) => i !== activeIdx && j.status === 'queued');
+        if (nextQueuedIdx !== -1) next[nextQueuedIdx] = { ...next[nextQueuedIdx], status: 'active' };
+      }
+      return next;
+    });
+  }, []);
+  const addJob = useCallback((partName: string, quantity: number) => {
+    setJobQueue(prev => {
+      const newJob: Job = {
+        id: Math.random().toString(36).substr(2, 9),
+        partName,
+        programName: 'PROJECT_ALPHA_V2.NC',
+        quantity,
+        completedQty: 0,
+        scrappedQty: 0,
+        status: prev.some(j => j.status === 'active') ? 'queued' : 'active',
+      };
+      return [...prev, newJob];
+    });
+  }, []);
+  const removeJob = useCallback((id: string) => {
+    // Active job can't be removed via this action (it's on the machine right
+    // now) -- JobQueue.tsx also disables the button, this is defense-in-depth.
+    setJobQueue(prev => prev.filter(j => !(j.id === id && j.status !== 'active')));
+  }, []);
+  const skipJob = useCallback((id: string) => {
+    setJobQueue(prev => {
+      const idx = prev.findIndex(j => j.id === id);
+      if (idx === -1) return prev;
+      const job = prev[idx];
+      if (job.status === 'done' || job.status === 'skipped') return prev;
+      const wasActive = job.status === 'active';
+      const next = [...prev];
+      next[idx] = { ...job, status: 'skipped' };
+      if (wasActive) {
+        const nextQueuedIdx = next.findIndex((j, i) => i !== idx && j.status === 'queued');
+        if (nextQueuedIdx !== -1) next[nextQueuedIdx] = { ...next[nextQueuedIdx], status: 'active' };
+      }
+      return next;
+    });
+  }, []);
   // The ~1.5s "computing" theater between CYCLE START and the real
   // simulation starting (SimulationLoadingModal). Its message-sequencing
   // timer is self-contained in the modal; only this open/closed boolean is
@@ -105,7 +165,7 @@ const App: React.FC = () => {
   // of the shell behind them so screen readers see one active H1 at a time.
   // The cycle-loading modal joins this set too: it's a transient overlay,
   // not a document root, but the background shell should stay just as inert.
-  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isFleetViewOpen || isCycleLoadingOpen;
+  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isFleetViewOpen || isJobQueueOpen || isCycleLoadingOpen;
   const [leftWidth, setLeftWidth] = useState(420);
   const [rightWidth, setRightWidth] = useState(340);
   const [terminalHeight, setTerminalHeight] = useState(200);
@@ -267,6 +327,7 @@ const App: React.FC = () => {
         const { feedRate, spindleRpm } = applyThrough(lastIndex);
         addLog("Program execution complete.", "success");
         setOee(prev => ({ ...prev, cyclesCompleted: prev.cyclesCompleted + 1 }));
+        recordJobOutcome('completed');
         setStatus(prev => ({
           ...prev,
           isSimulating: false,
@@ -314,7 +375,7 @@ const App: React.FC = () => {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [status.isSimulating, gcodeTimeline, addLog, overrides.feedPct, execModifiers.singleBlock, execModifiers.optionalStop]);
+  }, [status.isSimulating, gcodeTimeline, addLog, overrides.feedPct, execModifiers.singleBlock, execModifiers.optionalStop, recordJobOutcome]);
 
   useEffect(() => {
     setActiveLineIndex(status.activeLineIndex);
@@ -463,6 +524,7 @@ const App: React.FC = () => {
     // OEE Quality. Resetting an idle or already-complete program isn't.
     if (status.progress > 0 && status.progress < 100) {
       setOee(prev => ({ ...prev, cyclesScrapped: prev.cyclesScrapped + 1 }));
+      recordJobOutcome('scrapped');
     }
     setStatus({
       spindleRpm: 0,
@@ -475,7 +537,7 @@ const App: React.FC = () => {
     setCoords({ x: 0, y: 0, z: 10 });
     setActiveLineIndex(0);
     addLog("System Reset. Returning to program start.", "info");
-  }, [addLog, status.progress]);
+  }, [addLog, status.progress, recordJobOutcome]);
 
   const toggleEditMenu = () => {
     setIsEditMenuOpen(!isEditMenuOpen);
@@ -503,6 +565,8 @@ const App: React.FC = () => {
         onOpenAlarms={() => openHelpMenu('System Logs')}
         hasActiveAlarm={hasActiveAlarm}
         onOpenFleetView={() => setIsFleetViewOpen(true)}
+        onOpenJobQueue={() => setIsJobQueueOpen(true)}
+        pendingJobCount={jobQueue.filter(j => j.status === 'active' || j.status === 'queued').length}
         isEditActive={isEditMenuOpen}
         isViewActive={isViewMenuOpen}
         isHelpActive={isHelpMenuOpen}
@@ -624,6 +688,17 @@ const App: React.FC = () => {
             downtimeMs,
             currentFeedPct: overrides.feedPct,
           }}
+        />
+      )}
+      {isJobQueueOpen && (
+        <JobQueue
+          onClose={() => setIsJobQueueOpen(false)}
+          jobs={jobQueue}
+          cycleTimeMs={programSummary.totalDurationMs}
+          activeUnitProgressPercent={status.progress}
+          onAddJob={addJob}
+          onRemoveJob={removeJob}
+          onSkipJob={skipJob}
         />
       )}
       <SimulationLoadingModal isOpen={isCycleLoadingOpen} onComplete={handleCycleLoadingComplete} />

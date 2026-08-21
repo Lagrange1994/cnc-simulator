@@ -14,6 +14,11 @@ interface HeaderProps {
   hasActiveAlarm?: boolean;
   /** Opens the Machine Fleet view (the Connected tag becomes a button). */
   onOpenFleetView?: () => void;
+  /** Opens the Job Queue (work order queue). */
+  onOpenJobQueue?: () => void;
+  /** Count of jobs still queued or active -- shown as a badge on the Job
+   * Queue button so an operator can see queue depth without opening it. */
+  pendingJobCount?: number;
   isEditActive?: boolean;
   isViewActive?: boolean;
   isHelpActive?: boolean;
@@ -47,6 +52,8 @@ const Header: React.FC<HeaderProps> = ({
   onOpenAlarms,
   hasActiveAlarm,
   onOpenFleetView,
+  onOpenJobQueue,
+  pendingJobCount,
   isEditActive,
   isViewActive,
   isHelpActive
@@ -130,6 +137,22 @@ const Header: React.FC<HeaderProps> = ({
         </button>
         <div className="h-8 w-px bg-cds-border mx-1"></div>
         <div className="flex gap-1">
+          <button
+            onClick={onOpenJobQueue}
+            className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative"
+            title="Job Queue"
+            aria-label={pendingJobCount ? `Job Queue, ${pendingJobCount} pending` : 'Job Queue'}
+          >
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">assignment</span>
+            {!!pendingJobCount && (
+              <span
+                className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-0.5 flex items-center justify-center bg-cds-interactive text-white text-[8px] font-mono font-semibold leading-none"
+                aria-hidden="true"
+              >
+                {pendingJobCount}
+              </span>
+            )}
+          </button>
           <button
             onClick={onOpenAlarms}
             className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative"

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Header from './Header';
 
@@ -62,5 +62,27 @@ describe('Header Connected tag / Fleet View entry point', () => {
     render(<Header {...baseProps} onOpenFleetView={onOpenFleetView} />);
     await user.click(screen.getByText('Connected: Machine_01'));
     expect(onOpenFleetView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Header Job Queue button', () => {
+  it('shows a plain "Job Queue" label and no badge when nothing is pending', () => {
+    render(<Header {...baseProps} pendingJobCount={0} />);
+    const button = screen.getByLabelText('Job Queue');
+    expect(within(button).queryByText('0')).not.toBeInTheDocument();
+  });
+
+  it('shows a pending-count badge when jobs are queued or active', () => {
+    render(<Header {...baseProps} pendingJobCount={3} />);
+    const button = screen.getByLabelText('Job Queue, 3 pending');
+    expect(within(button).getByText('3')).toBeInTheDocument();
+  });
+
+  it('calls onOpenJobQueue when clicked', async () => {
+    const onOpenJobQueue = vi.fn();
+    const user = userEvent.setup();
+    render(<Header {...baseProps} onOpenJobQueue={onOpenJobQueue} pendingJobCount={2} />);
+    await user.click(screen.getByLabelText('Job Queue, 2 pending'));
+    expect(onOpenJobQueue).toHaveBeenCalledTimes(1);
   });
 });

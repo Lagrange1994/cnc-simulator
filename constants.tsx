@@ -1,5 +1,5 @@
 
-import { GCodeLine, Tool, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, ExecutionModifiers } from './types';
+import { GCodeLine, Tool, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, ExecutionModifiers, Job } from './types';
 import { MATERIALS, midpoint } from './lib/machine/materials';
 
 export const INITIAL_GCODE: GCodeLine[] = [
@@ -71,3 +71,13 @@ export const DEFAULT_WCS_OFFSETS: WcsOffsets = {
   G58: { x: 0, y: 0, z: 0 },
   G59: { x: 0, y: 0, z: 0 },
 };
+
+// programName matches FleetView's MACHINE_01 card ("PROJECT_ALPHA_V2.NC") --
+// one loaded program, several work orders queued to run through it. The
+// first job starts partway through (completedQty: 3) so the queue reads as
+// an in-progress shop-floor shift rather than a freshly-opened, empty one.
+export const DEFAULT_JOB_QUEUE: Job[] = [
+  { id: 'job-1', partName: 'Bracket Rev C',   programName: 'PROJECT_ALPHA_V2.NC', quantity: 12, completedQty: 3, scrappedQty: 0, status: 'active' },
+  { id: 'job-2', partName: 'Mounting Plate',  programName: 'PROJECT_ALPHA_V2.NC', quantity: 6,  completedQty: 0, scrappedQty: 0, status: 'queued' },
+  { id: 'job-3', partName: 'Spacer Ring',     programName: 'PROJECT_ALPHA_V2.NC', quantity: 20, completedQty: 0, scrappedQty: 0, status: 'queued' },
+];
