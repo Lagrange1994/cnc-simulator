@@ -58,12 +58,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     <aside className="flex-1 flex flex-col bg-cds-bg border-cds-border shadow-xl z-20 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
 
-        <CuttingResult summary={programSummary} />
-
-        {/* Digital Read Out (DRO) – Carbon $layer-01 panel */}
+        {/* Digital Read Out (DRO) and live Status are the two values an
+            operator needs without scrolling (Z depth is the #1 crash-risk
+            number) — render them first so they survive short viewports
+            (1280x720 laptops clip anything below ~470px here). CuttingResult
+            (pre-flight summary) and Tooling detail are lower urgency, so
+            they sit below and absorb the scroll. */}
         <div className="p-6 border-b border-cds-border bg-cds-layer-01">
           <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">my_location</span> Coordinates
+            <span className="material-symbols-outlined text-sm" aria-hidden="true">my_location</span> Coordinates
           </h2>
           <div className="grid grid-cols-1 gap-3 font-mono">
             <DROField label="X" value={coords.x} color="red-500" />
@@ -75,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Machine Status */}
         <div className="p-6 border-b border-cds-border">
           <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">speed</span> Status
+            <span className="material-symbols-outlined text-sm" aria-hidden="true">speed</span> Status
           </h2>
           <div className="grid grid-cols-2 gap-4">
             <StatusCard label="Spindle (RPM)" value={status.spindleRpm.toLocaleString()} fillPercent={loadFillPercent(status.spindleRpm, MACHINE_SPEC.maxSpindleRpm)} color="white" />
@@ -83,16 +86,18 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
+        <CuttingResult summary={programSummary} />
+
         {/* Tools Section */}
         <div className="flex-1 flex flex-col p-6">
           <h2 className="text-label font-semibold text-cds-text-03 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">handyman</span> Tooling
+            <span className="material-symbols-outlined text-sm" aria-hidden="true">handyman</span> Tooling
           </h2>
 
           {/* Active Tool – Carbon $layer-02 */}
           <div className="bg-cds-layer-01 border border-cds-border p-4 flex gap-4 items-center shrink-0">
             <div className="w-12 h-12 bg-white/5 flex items-center justify-center border border-cds-border-str/30 shrink-0">
-              <span className="material-symbols-outlined text-cds-text-02">construction</span>
+              <span className="material-symbols-outlined text-cds-text-02" aria-hidden="true">construction</span>
             </div>
             <div className="min-w-0">
               <div className="text-cds-interactive font-semibold font-mono text-body-sm truncate">{activeTool.id}</div>
@@ -178,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="text-[10px] uppercase text-cds-text-04 font-semibold mb-2 px-1">Next Up</div>
             <div className="bg-cds-layer-01/50 border border-white/5 p-3 flex gap-3 items-center">
               <div className="w-8 h-8 bg-white/5 flex items-center justify-center border border-cds-border/30 shrink-0">
-                <span className="material-symbols-outlined text-cds-text-03 text-sm">circle</span>
+                <span className="material-symbols-outlined text-cds-text-03 text-sm" aria-hidden="true">circle</span>
               </div>
               <div className="min-w-0">
                 <div className="text-cds-text-02 font-semibold font-mono text-label truncate">{nextTool.id}</div>
@@ -202,7 +207,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 : 'bg-cds-interactive hover:bg-cds-link text-white shadow-[0_0_20px_rgba(69,137,255,0.4)]'
             }`}
           >
-            <span className="material-symbols-outlined text-2xl">play_arrow</span>
+            <span className="material-symbols-outlined text-2xl" aria-hidden="true">play_arrow</span>
             CYCLE START
           </button>
           {/* Carbon Ghost Button */}
@@ -210,14 +215,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClick={onFeedHold}
             className="h-11 relative chamfer-sm chamfer-border bg-cds-border-str/40 before:bg-cds-layer-02 hover:before:bg-cds-layer-03 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 transition-colors"
           >
-            <span className="material-symbols-outlined text-cds-warning text-[18px]">pause</span>
+            <span className="material-symbols-outlined text-cds-warning text-[18px]" aria-hidden="true">pause</span>
             FEED HOLD
           </button>
           <button
             onClick={onReset}
             className="h-11 relative chamfer-sm chamfer-border bg-cds-border-str/40 hover:bg-cds-error/50 before:bg-cds-layer-02 hover:before:bg-red-900/30 text-cds-text-01 font-medium text-body-sm flex items-center justify-center gap-2 transition-colors"
           >
-            <span className="material-symbols-outlined text-cds-error text-[18px]">stop</span>
+            <span className="material-symbols-outlined text-cds-error text-[18px]" aria-hidden="true">stop</span>
             RESET
           </button>
         </div>
@@ -241,7 +246,7 @@ const DROField: React.FC<{ label: string; value: number; color: string }> = ({ l
     <span className={`text-3xl font-medium tracking-tight text-cds-text-01 group-hover:text-${color} transition-colors tabular-nums font-mono`}>
       {value.toFixed(3).padStart(8, '0')}
     </span>
-    <span className="text-label text-cds-text-04">mm</span>
+    <span className="text-label text-cds-text-03">mm</span>
   </div>
 );
 
