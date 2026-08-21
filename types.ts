@@ -24,12 +24,23 @@ export interface MachineStatus {
   error?: string;
 }
 
+/** A tool's nominal geometry (diameter/length, as fitted) never changes; its
+ * offsets and life do, via the Tool Offset Table (EditSidebar.tsx) -- the
+ * real analogue is the H/D geometry offset screen every control keeps
+ * separate from the DRO, and a tool-life counter that ticks toward a
+ * replacement threshold. */
 export interface Tool {
   id: string;
   name: string;
   diameter: string;
   length: string;
   type: string;
+  /** Length offset (H), mm -- measured tool length from the spindle gauge line. */
+  lengthOffset: number;
+  /** Diameter offset (D), mm -- measured/compensated cutting diameter (nominal + wear). */
+  diameterOffset: number;
+  lifeUses: number;
+  lifeMaxUses: number;
 }
 
 export interface LogMessage {

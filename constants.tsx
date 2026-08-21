@@ -19,8 +19,10 @@ export const INITIAL_GCODE: GCodeLine[] = [
 ];
 
 export const TOOLS: Tool[] = [
-  { id: 'T1', name: 'Flat End Mill', diameter: '6.0mm', length: '50mm', type: 'End Mill' },
-  { id: 'T2', name: 'Ball Nose 3mm', diameter: '3.0mm', length: '45mm', type: 'Ball Nose' },
+  { id: 'T1', name: 'Flat End Mill',  diameter: '6.0mm',  length: '50mm', type: 'End Mill',   lengthOffset: 125.400, diameterOffset: 6.015,  lifeUses: 42, lifeMaxUses: 200 },
+  { id: 'T2', name: 'Ball Nose 3mm',  diameter: '3.0mm',  length: '45mm', type: 'Ball Nose',  lengthOffset: 118.750, diameterOffset: 3.008,  lifeUses: 15, lifeMaxUses: 150 },
+  { id: 'T3', name: 'Drill 8mm',      diameter: '8.0mm',  length: '60mm', type: 'Drill',      lengthOffset: 142.200, diameterOffset: 8.000,  lifeUses: 88, lifeMaxUses: 100 },
+  { id: 'T4', name: 'Face Mill 25mm', diameter: '25.0mm', length: '38mm', type: 'Face Mill',  lengthOffset: 95.600,  diameterOffset: 25.050, lifeUses: 5,  lifeMaxUses: 300 },
 ];
 
 export const DEFAULT_VIEW_SETTINGS: ViewSettings = {

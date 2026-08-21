@@ -24,8 +24,8 @@ const status: MachineStatus = {
   activeLineIndex: 0,
   coolant: false,
 };
-const activeTool: Tool = { id: 'T1', name: 'Flat End Mill', diameter: '6.0mm', length: '50mm', type: 'End Mill' };
-const nextTool: Tool = { id: 'T2', name: 'Ball Nose 3mm', diameter: '3.0mm', length: '45mm', type: 'Ball Nose' };
+const activeTool: Tool = { id: 'T1', name: 'Flat End Mill', diameter: '6.0mm', length: '50mm', type: 'End Mill', lengthOffset: 125.4, diameterOffset: 6.015, lifeUses: 42, lifeMaxUses: 200 };
+const nextTool: Tool = { id: 'T2', name: 'Ball Nose 3mm', diameter: '3.0mm', length: '45mm', type: 'Ball Nose', lengthOffset: 118.75, diameterOffset: 3.008, lifeUses: 15, lifeMaxUses: 150 };
 
 function renderSidebar(
   statusOverride: Partial<MachineStatus> = {},

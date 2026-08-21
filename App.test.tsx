@@ -393,3 +393,42 @@ describe('Alarm/Fault History', () => {
     expect(screen.getByText(/no alarms recorded this session/)).toBeInTheDocument();
   });
 });
+
+describe('Tool Offset Table', () => {
+  it('shows each tool\'s id, length offset (H), and diameter offset (D)', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    expect(screen.getByLabelText('T1 length offset')).toHaveValue(125.4);
+    expect(screen.getByLabelText('T1 diameter offset')).toHaveValue(6.015);
+  });
+
+  it('shows a tool nearing end of life with its use count', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+    // T3 is seeded at 88/100 uses -- nearing end of life.
+    expect(screen.getByText('88/100')).toBeInTheDocument();
+  });
+
+  it('updates a tool\'s length offset when the input changes', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    fireEvent.change(screen.getByLabelText('T1 length offset'), { target: { value: '130.25' } });
+
+    expect(screen.getByLabelText('T1 length offset')).toHaveValue(130.25);
+  });
+
+  it('persists a tool offset edit across closing and reopening the Edit panel', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.change(screen.getByLabelText('T1 diameter offset'), { target: { value: '6.5' } });
+
+    // Close unmounts EditSidebar entirely -- if the edit only lived in its
+    // local state, reopening would show the original seed value again.
+    fireEvent.click(screen.getByRole('button', { name: 'close' }));
+    fireEvent.click(screen.getByText('Edit'));
+
+    expect(screen.getByLabelText('T1 diameter offset')).toHaveValue(6.5);
+  });
+});

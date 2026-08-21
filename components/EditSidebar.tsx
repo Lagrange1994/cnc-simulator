@@ -1,12 +1,16 @@
 
 import React, { useState } from 'react';
+import { Tool } from '../types';
 
 interface EditSidebarProps {
   onClose: () => void;
+  tools: Tool[];
+  onUpdateTool: (id: string, patch: Partial<Tool>) => void;
 }
 
-const EditSidebar: React.FC<EditSidebarProps> = ({ onClose }) => {
+const EditSidebar: React.FC<EditSidebarProps> = ({ onClose, tools, onUpdateTool }) => {
   const [expandedSections, setExpandedSections] = useState({
+    toolOffsets: true,
     tools: true,
     geometry: true,
     macros: false
@@ -60,6 +64,69 @@ const EditSidebar: React.FC<EditSidebarProps> = ({ onClose }) => {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Tool Offset Table -- H/D geometry offsets and tool-life tracking,
+            kept as its own screen from the DRO just like a real control's
+            offset table (Sidebar's Active Tool card shows what's mounted,
+            not H/D -- this is where those get set). */}
+        <div className="border-t border-cds-border/30">
+          <button
+            onClick={() => toggleSection('toolOffsets')}
+            className="w-full h-12 px-6 flex items-center justify-between bg-white/2 hover:bg-white/5 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-sm text-cds-interactive">precision_manufacturing</span>
+              <span className="text-[10px] font-semibold tracking-widest text-cds-text-02">TOOL OFFSET TABLE</span>
+            </div>
+            <span className={`material-symbols-outlined text-cds-text-04 transition-transform ${expandedSections.toolOffsets ? 'rotate-180' : ''}`}>expand_more</span>
+          </button>
+
+          {expandedSections.toolOffsets && (
+            <div className="p-6 pt-2 space-y-3 animate-in slide-in-from-top-2 duration-300">
+              {tools.map((tool) => {
+                const lifePercent = Math.min(100, (tool.lifeUses / tool.lifeMaxUses) * 100);
+                const lifeColor = lifePercent >= 90 ? 'bg-cds-error' : lifePercent >= 75 ? 'bg-cds-warning' : 'bg-cds-interactive';
+                const lifeTextColor = lifePercent >= 90 ? 'text-cds-error' : lifePercent >= 75 ? 'text-cds-warning' : 'text-cds-text-04';
+                return (
+                  <div key={tool.id} className="bg-black/20 border border-cds-border/20 p-3 chamfer-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-mono font-semibold text-cds-interactive">{tool.id}</span>
+                      <span className="text-[9px] text-cds-text-03 uppercase tracking-tighter truncate mx-2">{tool.name}</span>
+                      <span className={`text-[9px] font-mono shrink-0 ${lifeTextColor}`}>{tool.lifeUses}/{tool.lifeMaxUses}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <label className="flex items-center gap-1.5 bg-black/40 border border-cds-border/30 px-2 h-8">
+                        <span className="text-[9px] text-cds-text-04 font-semibold shrink-0">H</span>
+                        <input
+                          type="number"
+                          step="0.001"
+                          value={tool.lengthOffset}
+                          onChange={(e) => onUpdateTool(tool.id, { lengthOffset: parseFloat(e.target.value) || 0 })}
+                          aria-label={`${tool.id} length offset`}
+                          className="w-full bg-transparent text-[10px] font-mono text-cds-text-01 outline-none"
+                        />
+                      </label>
+                      <label className="flex items-center gap-1.5 bg-black/40 border border-cds-border/30 px-2 h-8">
+                        <span className="text-[9px] text-cds-text-04 font-semibold shrink-0">D</span>
+                        <input
+                          type="number"
+                          step="0.001"
+                          value={tool.diameterOffset}
+                          onChange={(e) => onUpdateTool(tool.id, { diameterOffset: parseFloat(e.target.value) || 0 })}
+                          aria-label={`${tool.id} diameter offset`}
+                          className="w-full bg-transparent text-[10px] font-mono text-cds-text-01 outline-none"
+                        />
+                      </label>
+                    </div>
+                    <div className="w-full bg-black/40 h-1 overflow-hidden">
+                      <div className={`h-full transition-all duration-500 ${lifeColor}`} style={{ width: `${lifePercent}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Tool & Code Operations */}

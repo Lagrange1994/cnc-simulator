@@ -12,7 +12,7 @@ import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm } from './types';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool } from './types';
 import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
@@ -67,6 +67,14 @@ const App: React.FC = () => {
   // log. Raised/cleared by the effect below; see HelpManager's System Logs
   // tab for the full history and Header's alarm bell for the live indicator.
   const [alarms, setAlarms] = useState<Alarm[]>([]);
+  // Tool library / offset table (EditSidebar.tsx): geometry offsets (H/D)
+  // and life counters are editable and live here, separate from a tool's
+  // fixed nominal diameter/length -- the same split a real control keeps
+  // between "how the tool is built" and "what the offset screen says".
+  const [tools, setTools] = useState<Tool[]>(TOOLS);
+  const updateTool = useCallback((id: string, patch: Partial<Tool>) => {
+    setTools(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
+  }, []);
   // The ~1.5s "computing" theater between CYCLE START and the real
   // simulation starting (SimulationLoadingModal). Its message-sequencing
   // timer is self-contained in the modal; only this open/closed boolean is
@@ -343,12 +351,12 @@ const App: React.FC = () => {
     // instead of a hardcoded value, so the Status card matches whatever the
     // Cutting Parameters panel just showed. The G-code's own S/F-words still
     // take over once the timeline reaches a line that sets them.
-    const toolDiameterMm = parseToolDiameterMm(TOOLS[0].diameter);
+    const toolDiameterMm = parseToolDiameterMm(tools[0].diameter);
     const rpm = estimateRpm(cuttingParams.vcMPerMin, toolDiameterMm);
     setStatus(prev => ({ ...prev, isSimulating: true, spindleRpm: rpm, feedRate: cuttingParams.feedMmPerMin, coolant: true }));
     addLog("Cycle Start command received. Spindle spinning up...", "info");
     addLog("Homing sequence bypassed. Initializing path execution.", "warn");
-  }, [status.progress, addLog, cuttingParams]);
+  }, [status.progress, addLog, cuttingParams, tools]);
 
   // CYCLE START goes through the fake-computing modal first; the modal's
   // onComplete is what actually calls handleCycleStart.
@@ -461,8 +469,8 @@ const App: React.FC = () => {
           <Sidebar
             coords={coords}
             status={status}
-            activeTool={TOOLS[0]}
-            nextTool={TOOLS[1]}
+            activeTool={tools[0]}
+            nextTool={tools[1]}
             programSummary={programSummary}
             onCycleStart={handleCycleStartClick}
             onFeedHold={handleFeedHold}
@@ -481,7 +489,7 @@ const App: React.FC = () => {
 
         {/* Edit Menu Sidebar Overlay */}
         {isEditMenuOpen && (
-          <EditSidebar onClose={() => setIsEditMenuOpen(false)} />
+          <EditSidebar onClose={() => setIsEditMenuOpen(false)} tools={tools} onUpdateTool={updateTool} />
         )}
 
         {/* View Menu Sidebar Overlay */}
