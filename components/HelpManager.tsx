@@ -1,12 +1,17 @@
 
 import React, { useState } from 'react';
+import { Alarm } from '../types';
 
 interface HelpManagerProps {
   onClose: () => void;
+  alarms: Alarm[];
+  /** Which tab to land on -- the Header alarm bell deep links straight to
+   * 'System Logs' instead of the default G-Code Dictionary. */
+  initialTab?: string;
 }
 
-const HelpManager: React.FC<HelpManagerProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState('G-Code Dictionary');
+const HelpManager: React.FC<HelpManagerProps> = ({ onClose, alarms, initialTab }) => {
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'G-Code Dictionary');
   const [searchQuery, setSearchQuery] = useState('');
 
   const menuItems = [
@@ -151,6 +156,56 @@ const HelpManager: React.FC<HelpManagerProps> = ({ onClose }) => {
                       <div className="flex flex-col items-center justify-center h-full gap-4 text-cds-text-04">
                         <span className="material-symbols-outlined text-5xl">inventory_2</span>
                         <p className="text-label font-mono uppercase tracking-widest">Query returned null</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : activeTab === 'System Logs' ? (
+              <div className="flex-1 flex flex-col p-8 overflow-hidden">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="text-cds-text-01 font-semibold text-lg uppercase tracking-widest">Alarm / Fault History</h3>
+                  <span className={`text-[10px] font-semibold px-2 py-1 border uppercase tracking-widest ${
+                    alarms.some(a => a.status === 'active')
+                      ? 'bg-cds-error/10 border-cds-error/30 text-cds-error'
+                      : 'bg-cds-success/10 border-cds-success/30 text-cds-success'
+                  }`}>
+                    {alarms.some(a => a.status === 'active') ? 'Active alarm present' : 'All systems nominal'}
+                  </span>
+                </div>
+
+                <div className="flex-1 flex flex-col overflow-hidden border border-cds-border/20 bg-black/20 chamfer-md">
+                  <div className="grid grid-cols-[110px_110px_1fr_110px] bg-black/40 border-b border-cds-border/20 px-8 h-12 items-center">
+                    <span className="text-[10px] font-semibold text-cds-text-03 uppercase tracking-widest">Status</span>
+                    <span className="text-[10px] font-semibold text-cds-text-03 uppercase tracking-widest">Code</span>
+                    <span className="text-[10px] font-semibold text-cds-text-03 uppercase tracking-widest">Message</span>
+                    <span className="text-[10px] font-semibold text-cds-text-03 uppercase tracking-widest text-right">Time</span>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto pb-24">
+                    {alarms.length > 0 ? (
+                      alarms.map((alarm, idx) => (
+                        <div
+                          key={alarm.id}
+                          className={`grid grid-cols-[110px_110px_1fr_110px] px-8 h-14 items-center border-b border-cds-border/20 hover:bg-white/5 transition-colors ${idx % 2 === 0 ? 'bg-white/[0.01]' : ''}`}
+                        >
+                          <span className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-tighter ${
+                            alarm.status === 'active' ? 'text-cds-error' : 'text-cds-text-04'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${alarm.status === 'active' ? 'bg-cds-error animate-pulse' : 'bg-cds-text-04'}`}></span>
+                            {alarm.status}
+                          </span>
+                          <span className="text-body-sm font-mono font-semibold text-cds-warning">{alarm.code}</span>
+                          <span className="text-body-sm font-medium text-cds-text-03 truncate">{alarm.message}</span>
+                          <span className="text-[10px] font-mono text-cds-text-04 text-right">
+                            {alarm.status === 'active' ? alarm.raisedAt : alarm.clearedAt}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-4 text-cds-text-04">
+                        <span className="material-symbols-outlined text-5xl">verified</span>
+                        <p className="text-label font-mono uppercase tracking-widest">All_systems_nominal &mdash; no alarms recorded this session</p>
                       </div>
                     )}
                   </div>

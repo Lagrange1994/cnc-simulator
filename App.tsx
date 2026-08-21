@@ -12,10 +12,11 @@ import ViewSidebar from './components/ViewSidebar';
 import HelpManager from './components/HelpManager';
 import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
-import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets } from './types';
+import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm } from './types';
 import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
+import { MACHINE_SPEC } from './lib/machine/spec';
 
 const App: React.FC = () => {
   const [activeLineIndex, setActiveLineIndex] = useState(0);
@@ -35,6 +36,9 @@ const App: React.FC = () => {
   const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
+  // Which HelpManager tab to land on next open -- lets the alarm bell deep
+  // link straight to System Logs instead of the default G-Code Dictionary.
+  const [helpInitialTab, setHelpInitialTab] = useState('G-Code Dictionary');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewSettings, setViewSettings] = useState<ViewSettings>(DEFAULT_VIEW_SETTINGS);
   const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
@@ -58,6 +62,11 @@ const App: React.FC = () => {
   // so the DRO reads exactly 0 for it from then on.
   const [activeWcsId, setActiveWcsId] = useState<WcsId>(DEFAULT_ACTIVE_WCS);
   const [wcsOffsets, setWcsOffsets] = useState<WcsOffsets>(DEFAULT_WCS_OFFSETS);
+  // Alarm/Fault History -- structured, persistent record of conditions that
+  // exceeded a machine limit, separate from the Console Output line-by-line
+  // log. Raised/cleared by the effect below; see HelpManager's System Logs
+  // tab for the full history and Header's alarm bell for the live indicator.
+  const [alarms, setAlarms] = useState<Alarm[]>([]);
   // The ~1.5s "computing" theater between CYCLE START and the real
   // simulation starting (SimulationLoadingModal). Its message-sequencing
   // timer is self-contained in the modal; only this open/closed boolean is
@@ -254,6 +263,77 @@ const App: React.FC = () => {
     setActiveLineIndex(status.activeLineIndex);
   }, [status.activeLineIndex]);
 
+  // Alarm/Fault monitoring: watches the same override-scaled Spindle value
+  // the Status card displays (Sidebar.tsx computes the identical formula)
+  // against the machine's rated max. This is a real, reachable condition,
+  // not a decorative what-if: the default Cutting Parameters (Aluminum,
+  // midpoint Vc) already recommend ~15,915 RPM for a 6mm tool, above
+  // MACHINE_SPEC.maxSpindleRpm (12,000) -- so the alarm trips the instant
+  // CYCLE START seeds that RPM, then clears itself once the G-code's own
+  // M03 S12000 (exactly at the limit) takes over a couple seconds in.
+  // (Feed has an equivalent rated max, but no reachable combination of
+  // material feed-rate presets and the 0-150% override range can actually
+  // exceed it today, so a feed-overspeed watcher would never fire -- add
+  // one back if a future material/program preset makes it reachable.)
+  useEffect(() => {
+    const effectiveSpindleRpm = status.spindleRpm * overrides.spindlePct / 100;
+
+    const conditions: { kind: string; code: string; message: string; tripped: boolean }[] = [
+      {
+        kind: 'spindle-overspeed',
+        code: 'ALM-204',
+        message: `Spindle speed ${Math.round(effectiveSpindleRpm).toLocaleString()} RPM exceeds rated maximum (${MACHINE_SPEC.maxSpindleRpm.toLocaleString()} RPM).`,
+        tripped: effectiveSpindleRpm > MACHINE_SPEC.maxSpindleRpm,
+      },
+    ];
+
+    // Compute the transition (and any log lines it needs) from the current
+    // `alarms` value *before* touching state -- calling addLog from inside a
+    // setAlarms updater is exactly the impure-updater pattern that produces
+    // duplicate log lines under React.StrictMode's double-invoke (see the
+    // regression test "logs each executed line exactly once" above, which
+    // exists for the same reason on the movement effect).
+    let next = alarms;
+    const sideEffectLogs: { text: string; level: LogMessage['level'] }[] = [];
+
+    for (const c of conditions) {
+      const active = next.find(a => a.kind === c.kind && a.status === 'active');
+      if (c.tripped && !active) {
+        const alarm: Alarm = {
+          id: Math.random().toString(36).substr(2, 9),
+          kind: c.kind,
+          code: c.code,
+          message: c.message,
+          severity: 'critical',
+          status: 'active',
+          raisedAt: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        };
+        next = [alarm, ...next];
+        sideEffectLogs.push({ text: `${c.code}: ${c.message}`, level: 'error' });
+      } else if (!c.tripped && active) {
+        next = next.map(a => a.id === active.id
+          ? { ...a, status: 'cleared' as const, clearedAt: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) }
+          : a
+        );
+        sideEffectLogs.push({ text: `${c.code} cleared.`, level: 'success' });
+      }
+    }
+
+    // Nothing changed -- most renders (e.g. plain progress ticks), skip the
+    // setState so this doesn't re-run itself on every one of those.
+    if (sideEffectLogs.length === 0) return;
+
+    setAlarms(next);
+    sideEffectLogs.forEach(({ text, level }) => addLog(text, level));
+  }, [status.spindleRpm, overrides.spindlePct, alarms, addLog]);
+
+  const hasActiveAlarm = alarms.some(a => a.status === 'active');
+
+  const openHelpMenu = useCallback((tab: string = 'G-Code Dictionary') => {
+    setHelpInitialTab(tab);
+    setIsHelpMenuOpen(true);
+  }, []);
+
   const handleCycleStart = useCallback(() => {
     if (status.progress >= 100) {
       handleReset();
@@ -321,8 +401,10 @@ const App: React.FC = () => {
         onOpenFileMenu={() => setIsFileMenuOpen(true)}
         onOpenEditMenu={toggleEditMenu}
         onOpenViewMenu={toggleViewMenu}
-        onOpenHelpMenu={() => setIsHelpMenuOpen(true)}
+        onOpenHelpMenu={() => openHelpMenu()}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenAlarms={() => openHelpMenu('System Logs')}
+        hasActiveAlarm={hasActiveAlarm}
         isEditActive={isEditMenuOpen}
         isViewActive={isViewMenuOpen}
         isHelpActive={isHelpMenuOpen}
@@ -424,7 +506,7 @@ const App: React.FC = () => {
 
       {/* Overlays */}
       {isFileMenuOpen && <FileManager onClose={() => setIsFileMenuOpen(false)} />}
-      {isHelpMenuOpen && <HelpManager onClose={() => setIsHelpMenuOpen(false)} />}
+      {isHelpMenuOpen && <HelpManager onClose={() => setIsHelpMenuOpen(false)} alarms={alarms} initialTab={helpInitialTab} />}
       {isSettingsOpen && <SettingsManager onClose={() => setIsSettingsOpen(false)} />}
       <SimulationLoadingModal isOpen={isCycleLoadingOpen} onComplete={handleCycleLoadingComplete} />
     </div>

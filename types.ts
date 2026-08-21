@@ -51,6 +51,29 @@ export interface Overrides {
   spindlePct: number;
 }
 
+/** A single alarm/fault history entry -- distinct from the free-text
+ * Machine Console Output (Terminal.tsx), which logs every executed line.
+ * Alarms are structured, rarer, and persist in `status: 'cleared'` form
+ * after the underlying condition resolves, matching a real control's
+ * alarm history screen (you can see what tripped and when, not just what's
+ * currently active). `kind` is an internal, stable key App.tsx uses to find
+ * "the active alarm for this condition" again without re-triggering a
+ * duplicate entry every render; `code`/`message`/`severity` are the
+ * operator-facing fields. */
+export type AlarmSeverity = 'critical' | 'warning';
+export type AlarmStatus = 'active' | 'cleared';
+
+export interface Alarm {
+  id: string;
+  kind: string;
+  code: string;
+  message: string;
+  severity: AlarmSeverity;
+  status: AlarmStatus;
+  raisedAt: string;
+  clearedAt?: string;
+}
+
 /** Work Coordinate System id (G54-G59) -- which offset table entry is
  * currently active. The DRO shows position relative to whichever WCS is
  * active, not raw machine position; see Sidebar.tsx's workCoords. */

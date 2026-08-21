@@ -7,6 +7,11 @@ interface HeaderProps {
   onOpenViewMenu: () => void;
   onOpenHelpMenu: () => void;
   onOpenSettings?: () => void;
+  /** Opens Help straight to the System Logs (alarm history) tab. */
+  onOpenAlarms?: () => void;
+  /** True when at least one alarm in history has status 'active' -- swaps
+   * the notification bell's dot from the idle blue to a pulsing red. */
+  hasActiveAlarm?: boolean;
   isEditActive?: boolean;
   isViewActive?: boolean;
   isHelpActive?: boolean;
@@ -37,6 +42,8 @@ const Header: React.FC<HeaderProps> = ({
   onOpenViewMenu,
   onOpenHelpMenu,
   onOpenSettings,
+  onOpenAlarms,
+  hasActiveAlarm,
   isEditActive,
   isViewActive,
   isHelpActive
@@ -115,11 +122,16 @@ const Header: React.FC<HeaderProps> = ({
         <div className="h-8 w-px bg-cds-border mx-1"></div>
         <div className="flex gap-1">
           <button
+            onClick={onOpenAlarms}
             className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative"
-            aria-label="Notifications"
+            title={hasActiveAlarm ? 'Active alarm -- open System Logs' : 'Notifications'}
+            aria-label={hasActiveAlarm ? 'Active alarm, open System Logs' : 'Notifications'}
           >
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">notifications</span>
-            <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-cds-interactive" aria-hidden="true"></span>
+            <span
+              className={`absolute top-2.5 right-2.5 w-1.5 h-1.5 ${hasActiveAlarm ? 'bg-cds-error animate-pulse' : 'bg-cds-interactive'}`}
+              aria-hidden="true"
+            ></span>
           </button>
           <button
             onClick={onOpenSettings}

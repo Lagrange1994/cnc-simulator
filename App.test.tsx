@@ -323,3 +323,73 @@ describe('Work Coordinate System', () => {
     expect(screen.getByText('0010.000')).toBeInTheDocument();
   });
 });
+
+describe('Alarm/Fault History', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('raises a spindle overspeed alarm when CYCLE START seeds an RPM above the machine\'s rated max', () => {
+    // Default Cutting Parameters (Aluminum, midpoint Vc) already recommend
+    // 15,915 RPM for the 6mm default tool -- above MACHINE_SPEC.maxSpindleRpm
+    // (12,000) -- so this needs no override tweaking to reach.
+    render(<App />);
+    expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
+
+    clickCycleStartAndWaitForLoading();
+
+    expect(screen.getByLabelText('Active alarm, open System Logs')).toBeInTheDocument();
+    expect(screen.getByText(/ALM-204: Spindle speed 15,915 RPM exceeds rated maximum \(12,000 RPM\)/)).toBeInTheDocument();
+  });
+
+  it('clears the spindle overspeed alarm once the G-code\'s own M03 S12000 command takes over', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    expect(screen.getByLabelText('Active alarm, open System Logs')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1300); // past line 004 (M03 S12000), which sets spindle to exactly 12,000
+    });
+
+    expect(screen.queryByLabelText('Active alarm, open System Logs')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
+    expect(screen.getByText('ALM-204 cleared.')).toBeInTheDocument();
+  });
+
+  it('opens Help directly to System Logs with the active alarm listed when the bell is clicked', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+
+    fireEvent.click(screen.getByLabelText('Active alarm, open System Logs'));
+
+    expect(screen.getByText('ALM-204')).toBeInTheDocument();
+    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('Active alarm present')).toBeInTheDocument();
+  });
+
+  it('shows the alarm as cleared (not deleted) in System Logs after it resolves', () => {
+    render(<App />);
+    clickCycleStartAndWaitForLoading();
+    act(() => {
+      vi.advanceTimersByTime(1300);
+    });
+
+    fireEvent.click(screen.getByLabelText('Notifications'));
+
+    expect(screen.getByText('ALM-204')).toBeInTheDocument();
+    expect(screen.getByText('cleared')).toBeInTheDocument();
+    expect(screen.getByText('All systems nominal')).toBeInTheDocument();
+  });
+
+  it('shows "no alarms recorded" in System Logs before any alarm has fired', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Help'));
+    fireEvent.click(screen.getByText('SYSTEM LOGS'));
+
+    expect(screen.getByText(/no alarms recorded this session/)).toBeInTheDocument();
+  });
+});
