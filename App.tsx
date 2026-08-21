@@ -14,9 +14,11 @@ import SettingsManager from './components/SettingsManager';
 import SimulationLoadingModal from './components/SimulationLoadingModal';
 import FleetView from './components/FleetView';
 import JobQueue from './components/JobQueue';
+import CollisionReport from './components/CollisionReport';
 import { Coordinates, MachineStatus, LogMessage, ViewSettings, CuttingParams, Overrides, WcsId, WcsOffsets, Alarm, Tool, ExecutionModifiers, OeeCounters, Job } from './types';
 import { INITIAL_GCODE, TOOLS, DEFAULT_VIEW_SETTINGS, DEFAULT_CUTTING_PARAMS, DEFAULT_OVERRIDES, DEFAULT_ACTIVE_WCS, DEFAULT_WCS_OFFSETS, DEFAULT_EXECUTION_MODIFIERS, DEFAULT_JOB_QUEUE } from './constants';
 import { computeGCodeTimeline, findActiveEntry, summarizeProgram } from './lib/gcode/parser';
+import { analyzeCollisionRisk } from './lib/gcode/collisionCheck';
 import { getMaterial, parseToolDiameterMm, estimateRpm } from './lib/machine/materials';
 import { MACHINE_SPEC } from './lib/machine/spec';
 
@@ -44,6 +46,7 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFleetViewOpen, setIsFleetViewOpen] = useState(false);
   const [isJobQueueOpen, setIsJobQueueOpen] = useState(false);
+  const [isCollisionReportOpen, setIsCollisionReportOpen] = useState(false);
   const [viewSettings, setViewSettings] = useState<ViewSettings>(DEFAULT_VIEW_SETTINGS);
   const updateViewSettings = useCallback((patch: Partial<ViewSettings>) => {
     setViewSettings(prev => ({ ...prev, ...patch }));
@@ -165,7 +168,7 @@ const App: React.FC = () => {
   // of the shell behind them so screen readers see one active H1 at a time.
   // The cycle-loading modal joins this set too: it's a transient overlay,
   // not a document root, but the background shell should stay just as inert.
-  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isFleetViewOpen || isJobQueueOpen || isCycleLoadingOpen;
+  const isFullScreenModalOpen = isFileMenuOpen || isHelpMenuOpen || isSettingsOpen || isFleetViewOpen || isJobQueueOpen || isCollisionReportOpen || isCycleLoadingOpen;
   const [leftWidth, setLeftWidth] = useState(420);
   const [rightWidth, setRightWidth] = useState(340);
   const [terminalHeight, setTerminalHeight] = useState(200);
@@ -261,6 +264,15 @@ const App: React.FC = () => {
   const programSummary = useMemo(
     () => summarizeProgram(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, 1200),
     []
+  );
+
+  // Collision/Gouge Report (CollisionReport.tsx): static verification of the
+  // fixed program against the active tool's live geometry -- recomputes
+  // whenever `tools` changes, since that's the only thing (Tool Offset
+  // Table: diameter offset, life count) that can actually move a finding.
+  const collisionReport = useMemo(
+    () => analyzeCollisionRisk(INITIAL_GCODE, { x: 0, y: 0, z: 10 }, tools[0]),
+    [tools]
   );
 
   // Movement Logic
@@ -567,6 +579,8 @@ const App: React.FC = () => {
         onOpenFleetView={() => setIsFleetViewOpen(true)}
         onOpenJobQueue={() => setIsJobQueueOpen(true)}
         pendingJobCount={jobQueue.filter(j => j.status === 'active' || j.status === 'queued').length}
+        onOpenCollisionReport={() => setIsCollisionReportOpen(true)}
+        hasCollisionFindings={collisionReport.findings.length > 0}
         isEditActive={isEditMenuOpen}
         isViewActive={isViewMenuOpen}
         isHelpActive={isHelpMenuOpen}
@@ -699,6 +713,13 @@ const App: React.FC = () => {
           onAddJob={addJob}
           onRemoveJob={removeJob}
           onSkipJob={skipJob}
+        />
+      )}
+      {isCollisionReportOpen && (
+        <CollisionReport
+          onClose={() => setIsCollisionReportOpen(false)}
+          report={collisionReport}
+          activeTool={tools[0]}
         />
       )}
       <SimulationLoadingModal isOpen={isCycleLoadingOpen} onComplete={handleCycleLoadingComplete} />

@@ -860,3 +860,53 @@ describe('Job Queue', () => {
     expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
   });
 });
+
+describe('Collision/Gouge Report', () => {
+  function openCollisionReport() {
+    fireEvent.click(screen.getByLabelText(/Collision\/Gouge Report/));
+  }
+
+  it('opens from the header button showing a clear result for the unmodified program and tool', () => {
+    render(<App />);
+    openCollisionReport();
+
+    expect(screen.getByText('COLLISION / GOUGE REPORT')).toBeInTheDocument();
+    expect(screen.getByText('Clear -- No Risks Detected')).toBeInTheDocument();
+    expect(screen.getByLabelText('Collision/Gouge Report, clear')).toBeInTheDocument();
+  });
+
+  it('flags T1 once its diameter offset is pushed past tolerance in the Tool Offset Table', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.change(screen.getByLabelText('T1 diameter offset'), { target: { value: '6.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'close' }));
+
+    expect(screen.getByLabelText('Collision/Gouge Report, issues found')).toBeInTheDocument();
+
+    openCollisionReport();
+    expect(screen.getByText('1 Issue Found')).toBeInTheDocument();
+    expect(screen.getByText('Tool diameter offset exceeds tolerance')).toBeInTheDocument();
+  });
+
+  it('clears the finding again once the diameter offset is brought back within tolerance', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.change(screen.getByLabelText('T1 diameter offset'), { target: { value: '6.5' } });
+    fireEvent.change(screen.getByLabelText('T1 diameter offset'), { target: { value: '6.02' } });
+    fireEvent.click(screen.getByRole('button', { name: 'close' }));
+
+    expect(screen.getByLabelText('Collision/Gouge Report, clear')).toBeInTheDocument();
+  });
+
+  it('closes and hides the app shell from the accessibility tree while open, like the other full-screen modals', () => {
+    render(<App />);
+    openCollisionReport();
+
+    const shellHeading = screen.getByText('Super High Tech');
+    expect(shellHeading.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Close Collision/Gouge Report'));
+    expect(screen.queryByText('COLLISION / GOUGE REPORT')).not.toBeInTheDocument();
+    expect(shellHeading.closest('[aria-hidden="true"]')).toBeNull();
+  });
+});

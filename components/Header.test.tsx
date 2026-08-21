@@ -86,3 +86,26 @@ describe('Header Job Queue button', () => {
     expect(onOpenJobQueue).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Header Collision/Gouge Report button', () => {
+  it('shows the idle blue dot and "clear" label when there are no findings', () => {
+    render(<Header {...baseProps} hasCollisionFindings={false} />);
+    const button = screen.getByLabelText('Collision/Gouge Report, clear');
+    expect(button.querySelector('.bg-cds-interactive')).toBeInTheDocument();
+    expect(button.querySelector('.bg-cds-error')).not.toBeInTheDocument();
+  });
+
+  it('swaps to a pulsing red dot and an "issues found" label when there is at least one finding', () => {
+    render(<Header {...baseProps} hasCollisionFindings />);
+    const button = screen.getByLabelText('Collision/Gouge Report, issues found');
+    expect(button.querySelector('.bg-cds-error.animate-pulse')).toBeInTheDocument();
+  });
+
+  it('calls onOpenCollisionReport when clicked', async () => {
+    const onOpenCollisionReport = vi.fn();
+    const user = userEvent.setup();
+    render(<Header {...baseProps} onOpenCollisionReport={onOpenCollisionReport} />);
+    await user.click(screen.getByLabelText('Collision/Gouge Report, clear'));
+    expect(onOpenCollisionReport).toHaveBeenCalledTimes(1);
+  });
+});

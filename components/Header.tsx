@@ -19,6 +19,12 @@ interface HeaderProps {
   /** Count of jobs still queued or active -- shown as a badge on the Job
    * Queue button so an operator can see queue depth without opening it. */
   pendingJobCount?: number;
+  /** Opens the Collision/Gouge Report. */
+  onOpenCollisionReport?: () => void;
+  /** True when the static toolpath verification has at least one finding --
+   * swaps the report button's dot from idle blue to a pulsing red, same
+   * pattern as the alarm bell's hasActiveAlarm. */
+  hasCollisionFindings?: boolean;
   isEditActive?: boolean;
   isViewActive?: boolean;
   isHelpActive?: boolean;
@@ -54,6 +60,8 @@ const Header: React.FC<HeaderProps> = ({
   onOpenFleetView,
   onOpenJobQueue,
   pendingJobCount,
+  onOpenCollisionReport,
+  hasCollisionFindings,
   isEditActive,
   isViewActive,
   isHelpActive
@@ -152,6 +160,18 @@ const Header: React.FC<HeaderProps> = ({
                 {pendingJobCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={onOpenCollisionReport}
+            className="size-11 flex items-center justify-center text-cds-text-03 hover:text-cds-text-01 hover:bg-white/5 transition-colors relative"
+            title={hasCollisionFindings ? 'Collision/Gouge Report -- issues found' : 'Collision/Gouge Report'}
+            aria-label={hasCollisionFindings ? 'Collision/Gouge Report, issues found' : 'Collision/Gouge Report, clear'}
+          >
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">fact_check</span>
+            <span
+              className={`absolute top-2.5 right-2.5 w-1.5 h-1.5 ${hasCollisionFindings ? 'bg-cds-error animate-pulse' : 'bg-cds-interactive'}`}
+              aria-hidden="true"
+            ></span>
           </button>
           <button
             onClick={onOpenAlarms}
